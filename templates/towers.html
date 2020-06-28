@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block content_left %}
+
+		<br>
+		<div STYLE="line-height: 200%; font-size: 16pt;">
+		{% for tower in towers %}
+			<a class="mr-2" href="/rtdata?tower={{ tower.short_name }}&city={{ tower.city }}">
+			<font class="font-weight-lighter">{{ tower.city }}</font><font >{{ tower.short_name }}</font></a><br>
+		{% endfor %}
+		</div>
+
+{% endblock content_left %}
+
+{% block content_center %}
+
+		<article class="media content-section">
+			<div class="media-body">
+					<p>Some general text related to collaboration we have. Currently we collaborating with Meteostation MSU.</p>
+					<small class="text-muted">Hypothetical scheme of we having many masts in our database. All matches are random :)</small>
+					<center><img class="rounded mx-auto d-block" src="{{ url_for('static', filename='yandexmap.png') }}" width="100%" alt="Hypothetical scheme of many masts"></center>
+			</div>
+		</article>
+
+
+{% endblock content_center %}

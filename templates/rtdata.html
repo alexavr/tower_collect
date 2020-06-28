@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+
+{% block content_left %}
+
+	<!-- <u><a class="font-weight-lighter mr-2" href="/" ><font> all towers </font></a></u><br> -->
+	<br>
+    <div class="font-weight-lighter text-center" style="padding: 0; margin-bottom: 20px; font-size: 18pt; line-height: 80%" >
+    	<a class="mr-2" href="./rtdata?tower={{ tower }}&city={{ city }}">
+    		<font >{{ city }}</font><font class="font-weight-light">{{ tower }}</font>
+    	</a>
+    	<font style="font-size: 14pt;" class="text-muted">real-time data</font>
+	</div>
+
+<!-- equipment buttons -->
+		{% for eq in data %}
+			{% if active == eq.equipment_name %}
+				<a href="./rtdata?tower={{ tower }}&city={{ city }}&section={{ eq.type }}&var={{ var }}&active={{ eq.equipment_name }}"><div class="btn btn-tower-active btn-lg font-weight-light" style="width: 100%; margin-bottom: 5px; font-size: 9pt;"  data-toggle="tooltip" data-placement="right" data-html="true" title=" <b>{{ eq.model}}</b> <br> <em>at {{ eq.height }} m height</em><br> Mounted at {{ eq.install_date }}" ><b>{{ eq.name }}</b> <br><em>at {{ eq.height }} m </em></div></a><br>
+			{% else %}
+			  	<a href="./rtdata?tower={{ tower }}&city={{ city }}&section={{ eq.type }}&var={{ var }}&active={{ eq.equipment_name }}"><div class="btn btn-tower btn-lg font-weight-light" style="width: 100%; margin-bottom: 5px; font-size: 9pt;"   data-toggle="tooltip" data-placement="right" data-html="true" title=" <b>{{ eq.model}}</b> <br> <em>at {{ eq.height }} m height</em><br> Mounted at {{ eq.install_date }} " ><b>{{ eq.name }}</b> <br><em>at {{ eq.height }} m </em></div></a><br>
+			{% endif %}
+		{% endfor %}
+		<hr>
+<!-- heart beat button -->
+		{% if section == "hb" %}
+      		<a href="./rtdata?tower={{ tower }}&city={{ city }}&section=hb&hbvar=hbtemp"><div class="btn btn-hb-active btn-lg font-weight-light" style="width: 100%; margin-top: 5px; font-size: 9pt;">System state</div></a><br>
+      	{% else %}
+      		<a href="./rtdata?tower={{ tower }}&city={{ city }}&section=hb&hbvar=hbtemp"><div class="btn btn-hb btn-lg font-weight-light" style="width: 100%; margin-top: 5px; font-size: 9pt;" data-toggle="tooltip" data-placement="right" title="Shows the condition of the PC: CPU temperature, Memory and Network consumption">System state</div></a><br>
+      	{% endif %}
+
+{% endblock content_left %}
+
+{% block content_center %}
+
+	<article class="media content-section">
+
+		<div class="media-body">
+
+		  	{% if section == 1 %}
+
+		        <h1 class="display-4">The {{ tower }} description</h1>
+
+		        <p><i>Here should be some description of the Tower. Equipment, schemes, person in charge etc. </i></p>
+
+		        <p>{{ details.description }} </p>
+
+		        {% if tower == "MSU" %} 
+			        <img src="{{url_for('static', filename='MoscowMSU_plan.png')}}" width="70%">
+			        <img src="{{url_for('static', filename='MoscowMSU_scheme.png')}}" width="29%">
+		        {% endif %}
+
+			{% else %}
+
+			  	{% if alert %}
+				  	<div class="alert alert-danger font-weight-light " role="alert">
+				{% else %}
+				  	<div class="alert alert-secondary font-weight-lighter font-italic" role="alert">
+				{% endif %}
+					Last updated at {{ lastupdate }} (<b>{{ dlastupdate }}</b> ago).</div>
+
+
+				{% if section == "sonic" %}
+
+<!-- buttons of variables -->
+					<font class="text-muted">Measured parameters:</font><br>
+					{% for iv in variables %}
+						{% if var == iv['name'] %}
+							<a href="./rtdata?tower={{ tower }}&city={{ city }}&active={{ active }}&section=sonic&var={{ iv['name'] }}"><div class="btn btn-tower-active font-weight-light" style="margin-bottom: 5px;">{{ iv['short_name'] }}</div></a>
+						{% else %}
+							<a href="./rtdata?tower={{ tower }}&city={{ city }}&active={{ active }}&section=sonic&var={{ iv['name'] }}"><div class="btn btn-tower font-weight-light" style="margin-bottom: 5px;">{{ iv['short_name'] }}</div></a>
+						{% endif %}
+					{% endfor %}
+
+					<h1 class="display-4"><u>{{ var_longname }}</u></h1>
+				  	<p>Preliminary analysis of the raw data (L1) helps to get the basic picture of the equipment stability. Level L1 of the data provides direct measurements without any corrections except the transition to SI units. Here we plot the raw data and some simple statistics for two periods: the last 2 hour and the last 24 hours. Both periods are up to <i>now</i>. Please be aware of the upload lag: normally it takes 45-60 min for data to be plotted here. The amount of time without update is in the gray bar "Last updated ..." on top of the page, if it turns red than something went very wrong.</p>
+				  	<h1 class="font-weight-lighter">Last 2 hour</h1>
+				  	<p>The actual data representation and its running mean, see the legend for colors and for the window size of the running mean. Additionally we have rough quality control: the % of missing values computed in the same window as the running mean. </p>
+				  	<img src="{{url_for('static', filename='%s_%s_%s_data1hr.png'%(tower,active,var))}}" width="100%">
+				  	<p>This is time series of measurements per second. It shows the connection stability. Generally the line should be around the frequency in the equipment specification. Nevertheless some deviations are allowed. Normally instability here is related to the equipment-MOXA signal lag in this case is symmetrical and (long story short) fixes by the port-reading script on the Tower side. If deviations aren't symmetrical -- this is a true gap. </p>
+				  	<img src="{{url_for('static', filename='%s_%s_%s_stat1hr.png'%(tower,active,var))}}" width="100%">
+				  	<h1 class="font-weight-lighter">Last 24 hour</h1>
+				  	<p>The same as above. But for another period an with another running mean window (see the legend).</p>
+				  	<img src="{{url_for('static', filename='%s_%s_%s_data24hr.png'%(tower,active,var))}}" width="100%">
+				  	<p>The quality control shows how many measurements per second happened during this period. Both plots are essentially the same with different y-scaling. So the main frequency on the left plot should be identical to the specification of the device. The plot on the right side helps to see deviations.</p>
+				  	<img src="{{url_for('static', filename='%s_%s_%s_stat24hr.png'%(tower,active,var))}}" width="100%">
+				  	<br>
+				  	<br>
+
+				{% elif section == "hb" %}
+					<center>
+					{% for iv in variables %}
+						{% if hbvar == iv['name'] %}
+							<a class="mr-2" href="./rtdata?tower={{ tower }}&city={{ city }}&section=hb&hbvar={{ iv['name'] }}"><div class="btn btn-hb-active font-weight-light" style="width: 31%; font-size: 9pt;">{{ iv['long_name'] }}</div></a>
+						{% else %}
+							<a class="mr-2" href="./rtdata?tower={{ tower }}&city={{ city }}&section=hb&hbvar={{ iv['name'] }}"><div class="btn btn-hb font-weight-light" style="width: 31%; font-size: 9pt;">{{ iv['long_name'] }}</div></a>
+						{% endif %}
+					{% endfor %}
+					</center>
+
+					<br>
+					<p>The state of the PC on Tower that reads data from different sensors and sends it to the server.</p>
+
+				  	<small class="text-muted">Last day</small>
+				  	<img src="{{url_for('static', filename='%s_%s_1d.png'%(tower,hbvar))}}" width="100%">
+				  	<small class="text-muted">Last week</small>
+				  	<img src="{{url_for('static', filename='%s_%s_1w.png'%(tower,hbvar))}}" width="100%">
+				  	<small class="text-muted">Last month</small>
+				  	<img src="{{url_for('static', filename='%s_%s_1m.png'%(tower,hbvar))}}" width="100%">
+				  	<small class="text-muted">Last year</small>
+				  	<img src="{{url_for('static', filename='%s_%s_1y.png'%(tower,hbvar))}}" width="100%">
+
+				{% else %}
+
+					<h1 class="display-4">404</h1>
+
+				{% endif %}
+
+		  	{% endif %}
+
+	</article>
+
+
+{% endblock content_center %}

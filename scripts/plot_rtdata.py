@@ -1,0 +1,495 @@
+import netCDF4 as nc
+import numpy as np
+# import numpy.ma as ma
+from datetime import datetime, timedelta
+import sqlite3
+from pathlib import Path
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import MaxNLocator  # for axis integer
+# from scipy import signal
+import pandas as pd
+import configparser
+# import os
+
+CONFIG_NAME = "../tower.conf"
+DEBUG = False
+
+
+def read_config(path):
+
+    config = configparser.ConfigParser(
+        interpolation=configparser.ExtendedInterpolation()
+    )
+    config.read(path)
+
+    # settings = dict(config.items("paths"))
+    settings = dict(config["paths"])
+    # # Flatten the structure and convert the types of the parameters
+    # settings = dict(
+    #     wwwpath=config.get("paths", "wwwpath"),
+    #     datapath=config.get("paths", "datapath"),
+    #     dbpath=config.get("paths", "dbpath"),
+    #     dbfile=config.getint("paths", "dbfile"),
+    #     npzpath=config.getfloat("paths", "npzpath"),
+    #     L1path=config.getint("paths", "l1path"),
+    #     L2path=config.get("paths", "l2path"),
+    #     rrdpath=config.get("paths", "rrdpath"),
+    # )
+
+    return settings
+
+
+def smooth(x, window_len=11, window='hanning'):
+    """
+    """
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+    if window_len < 3:
+        return x
+
+    s = np.r_[2*x[0]-x[window_len-1::-1], x, 2*x[-1]-x[-1:-window_len:-1]]
+
+    if window == 'flat':  # moving average
+        w = np.ones(window_len)
+    elif window == 'hanning':
+        w = np.hanning(window_len)
+    elif window == 'hamming':
+        w = np.hamming(window_len)
+    elif window == 'bartlett':
+        w = np.bartlett(window_len)
+    elif window == 'blackman':
+        w = np.blackman(window_len)
+    else:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    y = np.convolve(w/w.sum(), s, mode='same')
+
+    return y[window_len:-window_len+1]
+
+
+def quality_info(datetimes, mask, window_len, frequency):
+    """ Computes gaps in data (by mask) in every window_len (seconds) step
+        with window_len step (not running value)
+    """
+    normal_amount = window_len*frequency
+
+    series = pd.Series(mask, index=datetimes)
+
+    quality = (1 - series[mask].resample(timedelta(seconds=window_len), label="left").sum()/normal_amount)*100.
+
+    return quality.index[1:-1], quality.values[1:-1]
+
+
+def plot_data(xsize, ysize, figname, title, datetimes, data, attrs, mask,
+    window_len, frequency, qtime, qvalue, debug):
+
+    f = plt.figure(figsize=(xsize, ysize))
+    ax1 = plt.subplot()
+    ax1.set_title(title)
+    ax1.grid(linestyle='--', alpha=0.5, linewidth=0.5)  # color='b'
+    ax1.tick_params(axis="both", labelsize=8, direction='in')
+    ax1.set_xlabel('Time, UTC', fontdict={'size': 8})
+    ax1.set_ylabel("%s, %s" % (attrs['long_name'], attrs['units']), fontdict={'size': 8}, color="tab:red")
+    # ax1.set_xlim(xmin=(datetime.utcnow() - timedelta(hours=1)), xmax=datetime.utcnow())
+    p10 = ax1.plot(datetimes[mask], data[mask], label="real data", color="salmon", alpha=0.7, linewidth=0.5)
+
+    # Plot running avg curve
+    temp1h_smooth = smooth(data[mask], window_len=int(window_len*frequency), window='hanning')
+    p11 = ax1.plot(datetimes[mask], temp1h_smooth, label="rmean (%d min)" % (window_len/60), color="tab:red", alpha=1, linewidth=1)
+    xmin, xmax = ax1.get_xlim()
+
+    # Plot quality curve
+    ax12 = ax1.twinx()
+    color = "tab:gray"
+    p12 = ax12.plot(qtime, qvalue, label="quality", color=color, alpha=1, linewidth=0.8)
+    ax12.fill_between(qtime, qvalue, np.min(qvalue), color=color, alpha=0.20)
+    ax12.tick_params(axis='y', labelsize=8, direction='in')
+    ax12.set_ylim(ymin=0.)
+    # ax12.set_xlim(xmin=xmin, xmax=xmax)
+    # ax12.bar(qtime, qvalue, color="gray", alpha=1)
+    ax12.set_ylabel('Protion of missing values (%)', fontdict={'size': 8}, color=color)
+    ax12.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    # ax12.set_xlim(xmax=datetime.utcnow())
+
+    lns = p10+p11+p12
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc='best', prop={'size': 8})
+
+    if debug:
+        plt.show()
+    else:
+        plt.savefig(figname, dpi=150)
+
+    plt.close()
+
+
+def plot_stat_time(xsize, ysize, figname, title, time, counts, debug):
+    plt.figure(figsize=(xsize, ysize))
+    ax1 = plt.subplot()
+    ax1.set_title(title)
+    ax1.grid(linestyle='--', alpha=0.5, linewidth=0.5)  # color='b'
+    ax1.tick_params(axis="both", labelsize=8, direction='in')
+    ax1.set_ylabel('Measurements per second', fontdict={'size': 8})
+    ax1.set_xlabel('Time, UTC', fontdict={'size': 8})
+    ax1.plot(time[2:-2], counts[2:-2], color="tab:green")
+
+    if debug:
+        plt.show()
+    else:
+        plt.savefig(figname, dpi=150)
+
+    plt.close()
+
+
+def plot_stat_hist(xsize, ysize, figname, n_obs, counts, debug):
+    f = plt.figure(figsize=(xsize, ysize))
+
+    ax2 = f.add_subplot(121)
+    ax2.set_title('Data frequency (Hz), last 24 h')
+    ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+    ax2.tick_params(axis="both", labelsize=8, direction='in')
+    ax2.set_xlabel('Measurements per second', fontdict={'size': 8})
+    ax2.set_ylabel('number of measurements', fontdict={'size': 8})
+    # ax2.hist(counts_24h[2:-2], density=False, edgecolor='black', linewidth=0.5)
+    ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax2.bar(n_obs, counts)
+
+    ax3 = f.add_subplot(122)
+    ax3.tick_params(axis="both", labelsize=8, direction='in')
+    ax3.set_title('Data frequency (Hz), last 24 h (logscale)')
+    ax3.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+    ax3.set_yscale('log')
+    ax3.set_xlabel('Measurements per second', fontdict={'size': 8})
+    ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # ax3.hist(counts_24h[2:-2], density=False, edgecolor='black', linewidth=0.5)
+    ax3.bar(n_obs, counts)
+
+    if debug:
+        plt.show()
+    else:
+        plt.savefig(figname, dpi=150)
+
+    plt.close()
+
+
+def plot_dummy(xsize, ysize, nplots, title, figname, debug):
+
+    fig, axs = plt.subplots(1, nplots, figsize=(xsize, ysize))
+
+    if nplots == 1:
+        axs.set_title(title)
+        axs.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+        axs.tick_params(axis="both", labelsize=8, direction='in')
+        axs.text(0.5, 0.5, "no data", fontsize=22, rotation=+0., ha="center", va="center")
+    else:
+        for ip in range(nplots):
+            axs[ip].set_title(title)
+            axs[ip].grid(linestyle='--', alpha=0.5, linewidth=0.5)
+            axs[ip].tick_params(axis="both", labelsize=8, direction='in')
+            # axs[ip].text(0.5, 0.5, "no data", size=22, rotation=+0., ha="center", va="center", bbox=dict(boxstyle="square"))
+            axs[ip].text(0.5, 0.5, "no data", fontsize=22, rotation=+0., ha="center", va="center")
+
+    if debug:
+        plt.show()
+    else:
+        plt.savefig(figname, dpi=150)
+
+    plt.close()
+
+
+# First read sonfiguration
+config = read_config(CONFIG_NAME)
+
+dbfile = "%s/%s" % (config['dbpath'], config['dbfile'])
+conn = sqlite3.connect(dbfile)
+cur = conn.cursor()
+cur.execute('SELECT short_name FROM towers')
+trows = cur.fetchall()
+for trow in trows:
+    tower_name = trow[0]
+    print("Working on tower named: %s" % (tower_name))
+
+    cur.execute('SELECT equipment_name,Hz FROM equipment WHERE tower_name=?', (tower_name,))
+    erows = cur.fetchall()
+    for erow in erows:
+        equipment_name = erow[0]
+        frequency = erow[1]
+        print("    Working on equipment: %s" % (equipment_name))
+
+        # Get last 2 files: in order to obtain 24 hr period we will read two
+        # files. For us to be sure we definitely have it.
+        p = Path(config['l1_path'])
+        allfiles = list(sorted(p.glob("%s_%s_*.nc" % (tower_name, equipment_name))))
+        files = allfiles[-2:]
+
+        # Read files and merge the results
+        data = {}
+        attributes = {}
+        for ifile in files:
+            ncid = nc.Dataset(ifile, 'r')
+            for k in ncid.variables.keys():
+                if k in data.keys():
+                    data[k].append(ncid.variables[k][:])
+                else:
+                    data[k] = [ncid.variables[k][:]]
+
+                    # breakpoint()
+                    if k != 'time':
+                        attributes[k] = {
+                            "short_name": ncid.variables[k].short_name,
+                            "long_name": ncid.variables[k].long_name,
+                            "missing_value": ncid.variables[k].missing_value,
+                            "units": ncid.variables[k].units,
+                            }
+
+            ncid.close()
+
+        # reorganize the results
+        for k in data.keys():
+            data[k] = np.concatenate(data[k])
+
+        for k in data.keys():
+
+            if k != 'time' and k != 'e1' and k != 'e2':
+
+                print("        Doing %s variable" % k)
+
+                ################################################################
+                # Time masking
+                datetimes = np.array([datetime.fromtimestamp(ts) for ts in data['time']])
+
+                # If data delays for more the 1 hour - use current time
+                # It's done to show the
+                dtime = datetime.utcnow() - datetimes
+                # if (datetime.utcnow() - datetimes[-1]) <= timedelta(hours=0.5):
+                #     dtime = datetimes[-1] - datetimes
+                # else:
+                #     dtime = datetime.utcnow() - datetimes
+
+                mask24h = dtime <= timedelta(days=1)
+                mask1h  = dtime <= timedelta(hours=2)
+
+
+                ################################################################
+                # Additional tuning
+                # Currently necessary for e3 (roll) and e4 (pitch)
+                if k == "e3":  # (from METEK_ANNEX.pdf)
+                    # breakpoint()
+                    # data[k] = np.arcsin((data[k]*10000.-24847.)/10052.)
+                    attributes[k]['short_name'] = "roll"
+                    attributes[k]['long_name'] = "roll"
+                    attributes[k]['missing_value'] = -999.
+                    attributes[k]['units'] = "deg"
+                if k == "e4":  # (from METEK_ANNEX.pdf)
+                    # data[k] = np.arcsin((data[k]*10000.-24686.)/9933.)
+                    attributes[k]['short_name'] = "pitch"
+                    attributes[k]['long_name'] = "pitch"
+                    attributes[k]['missing_value'] = -999.
+                    attributes[k]['units'] = "deg"
+
+                ################################################################
+                # VALUE PLOTS
+
+                # filter out missing values and spikes
+                mask_data = np.absolute(data[k]) <= 100.  # mask whats STAYS in the data!
+                mask1h = mask1h*mask_data
+                mask24h = mask24h*mask_data
+
+                # ЭТУ ОТРИСОВКУ НЕОБХОДИМО ПЕРЕПИСАТЬ!
+
+                # 1 HOUR PLOT
+                window_len = 2*60  # seconds
+                # frequency = 20  # Hz
+                figname = "%s/static/%s_%s_%s_data1hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
+
+                if np.sum(mask1h) > window_len*frequency:
+                    qtime, qvalue = quality_info(datetimes, mask1h, window_len, frequency)
+
+                    plot_data(xsize=10, ysize=3, title="%s, last 2 hr" % attributes[k]['long_name'],
+                        figname=figname, datetimes=datetimes,
+                        data=data[k], attrs=attributes[k], mask=mask1h,
+                        window_len=window_len, frequency=frequency,
+                        qtime=qtime, qvalue=qvalue,
+                        debug=DEBUG)
+                else:
+                    plot_dummy(xsize=10, ysize=3, nplots=1,
+                        title="%s, last 2 hr" % attributes[k]['long_name'], figname=figname,
+                        debug=DEBUG)
+
+                # 24 HOUR PLOT
+                window_len = 30*60  # seconds
+                # frequency = 20  # Hz
+                figname = "%s/static/%s_%s_%s_data24hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
+
+                if np.sum(mask24h) > window_len*frequency:
+                    qtime, qvalue = quality_info(datetimes, mask24h, window_len, frequency)
+                    plot_data(xsize=10, ysize=3, title="%s, last 24 hr" % attributes[k]['long_name'],
+                        figname=figname, datetimes=datetimes,
+                        data=data[k], attrs=attributes[k], mask=mask24h,
+                        window_len=window_len, frequency=frequency,
+                        qtime=qtime, qvalue=qvalue,
+                        debug=DEBUG)
+                else:
+                    plot_dummy(xsize=10, ysize=3, nplots=1,
+                        title="%s, last 24 hr" % attributes[k]['long_name'], figname=figname,
+                        debug=DEBUG)
+
+                # STATISTIC
+                figname = "%s/static/%s_%s_%s_stat1hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
+
+                if np.any(mask1h):
+                    time_sec = datetimes[mask1h].astype('datetime64[s]')
+                    unique_time_sec_1h, counts_1h = np.unique(time_sec, return_counts=True)
+                    plot_stat_time(xsize=10, ysize=3, title="Data frequency (Hz), last 2 hr",
+                        time=unique_time_sec_1h, counts=counts_1h, figname=figname, debug=DEBUG)
+                else:
+                    plot_dummy(xsize=10, ysize=3, nplots=1,
+                        title="Data frequency (Hz), last 2 hr", figname=figname,
+                        debug=DEBUG)
+
+                figname = "%s/static/%s_%s_%s_stat24hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
+                # print(" sum = %d" % np.sum(mask24h))
+                if np.any(mask24h):
+                    time_sec = datetimes[mask24h].astype('datetime64[s]')
+                    unique_time_sec_24h, counts_24h = np.unique(time_sec, return_counts=True)
+                    n_obs, counts = np.unique(counts_24h[2:-2], return_counts=True)
+                    plot_stat_hist(xsize=10, ysize=3, n_obs=n_obs, counts=counts, figname=figname, debug=DEBUG)
+                else:
+                    print("                two dummy plots")
+                    plot_dummy(xsize=10, ysize=3, nplots=2,
+                        title="Data frequency (Hz), last 24 hr", figname=figname,
+                        debug=DEBUG)
+
+        # # ax1 = plt.subplot(211)
+        # # ax1.set_title('last 1 h (as a function of time)')
+        # # ax1.grid(linestyle='--', alpha=0.5, linewidth=0.5) # color='b'
+        # # ax1.tick_params(axis="both", labelsize=8, direction='in')
+        # # ax1.set_ylabel('Data packets per minute',fontdict={'size':8})
+        # # ax1.plot(unique_time_sec_1h[2:-2], counts_1h[2:-2], color="tab:green")
+
+        # # ax2 = plt.subplot(223)
+        # # ax2.set_title('last 24 h')
+        # # ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+        # # ax2.tick_params(axis="both", labelsize=8, direction='in')
+        # # ax2.set_xlabel('Data packets per minute', fontdict={'size': 8})
+        # # ax2.set_ylabel('number', fontdict={'size': 8})
+        # # # ax2.hist(counts_24h[2:-2], density=False, edgecolor='black', linewidth=0.5)
+        # # ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+        # # ax2.bar(n_obs, counts)
+
+        # # ax3 = plt.subplot(224)
+        # # ax3.tick_params(axis="both", labelsize=8, direction='in')
+        # # ax3.set_title('last 24 h (logscale)')
+        # # ax3.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+        # # ax3.set_yscale('log')
+        # # ax3.set_xlabel('Data packets per minute', fontdict={'size': 8})
+        # # # ax3.hist(counts_24h[2:-2], density=False, edgecolor='black', linewidth=0.5)
+        # # ax3.bar(n_obs, counts)
+
+        # # plt.subplots_adjust(hspace=0.35)
+
+        # # if DEBUG:
+        # #     plt.show()
+        # # else:
+        # #     plt.savefig("%s/static/%s_%s_stability.png" % (wwwpath, tower_name, equipment_name), dpi=150)
+
+
+        # # ax1.remove()
+        # # ax2.remove()
+        # # ax3.remove()
+
+        # # # Spectra (/storage/kubrick/gavr/NAAD/v4/BAMS/MESO/CODE)
+        # # fs = 20
+        # # nperseg = 1024*20  # fs*20*60 # 20 minutes
+        # # f, psdu = signal.welch(data['u'][mask24h], fs=fs, window='hanning',
+        # #     nperseg=nperseg, noverlap=None, detrend='linear',
+        # #     return_onesided=True , scaling='density')
+        # # f, psdv = signal.welch(data['v'][mask24h], fs=fs, window='hanning',
+        # #     nperseg=nperseg, noverlap=None, detrend='linear',
+        # #     return_onesided=True , scaling='density')
+        # # f, psdw = signal.welch(data['w'][mask24h], fs=fs, window='hanning',
+        # #     nperseg=nperseg, noverlap=None, detrend='linear',
+        # #     return_onesided=True , scaling='density')
+        # # psd = (psdu) + (psdv) + (psdw)
+
+        # # # plt.rcParams['figure.figsize'] = (6,6)
+        # # # plt.rcParams['figure.dpi'] = 300
+        # # plt.tick_params(which='both', direction='in', grid_alpha=0.5)
+        # # plt.grid(linestyle='-', linewidth=0.3)
+        # # plt.yscale('log')
+        # # plt.xscale('log')
+        # # plt.xlabel('Frequency [Hz]')
+        # # plt.ylabel('Spectral density [m2 s-1]')
+        # # plt.title('Power spectra (signal.welch: Hanning, segment=%d)' % (nperseg))
+        # # # plt.ylim([1e-10, 1e-2])
+        # # # plt.xlim([1e-2, 1e+2])
+        # # plt.plot(f*2.*np.pi, psd, label="%s (%s)" % (tower_name, equipment_name))
+
+        # # if DEBUG:
+        # #     plt.show()
+        # # else:
+        # #     plt.savefig("%s/static/%s_%s_ekin.png" % (wwwpath, tower_name, equipment_name), dpi=150)
+
+        # # ########################################################################
+        # # # Temperature
+        # # # plt.figure(figsize=(10, 5))
+        # # # plt.plot(datetimes[mask24h][::1200], data['temp'][mask24h][::1200], label="Temperature", color="tab:red", alpha=0.5)
+        # # # plt.savefig("%s/static/%s_%s_temp.png"%(wwwpath, tower_name, equipment_name), dpi=150)
+
+        # # mask_data  = np.absolute(data['temp']) <= 200. # whats stays in the data!
+        # # mask1h = mask1h*mask_data
+        # # mask24h = mask24h*mask_data
+        # # # temp24h = ma.masked_values(data['temp'][mask24h][::1200], -999.)
+        # # # temp1h = ma.masked_values(data['temp'][mask1h], -999.)
+        # # # # mask1h = mask1h_time*mask1h_data
+
+        # # ax1 = plt.subplot(211)
+        # # ax1.set_title('Acoustic temperature [degC], last 1 h')
+        # # ax1.grid(linestyle='--', alpha=0.5, linewidth=0.5)  # color='b'
+        # # ax1.tick_params(axis="both", labelsize=8, direction='in')
+        # # ax1.set_xlabel('Time, UTC', fontdict={'size': 8})
+        # # # ax1.set_ylabel('Acoustic temperature [degC]', fontdict={'size': 8})
+        # # ax1.plot(datetimes[mask1h], data['temp'][mask1h], label = "real data", color="salmon", alpha=0.7, linewidth=0.5)
+        # # temp1h_smooth = smooth(data['temp'][mask1h], window_len=2400, window='hanning')
+        # # ax1.plot(datetimes[mask1h], temp1h_smooth, label = "2 min hanning window", color="tab:red", alpha=1, linewidth=1)
+        # # ax1.legend(loc='upper right', prop={'size': 8}, fancybox=False, framealpha=0.5)
+
+        # # ax2 = plt.subplot(212)
+        # # ax2.set_title('Acoustic temperature [degC], last 24 h')
+        # # ax2.grid(linestyle='--', alpha=0.5, linewidth=0.5)
+        # # ax2.tick_params(axis="both", labelsize=8, direction='in')
+        # # ax2.set_xlabel('Time, UTC', fontdict={'size': 8})
+        # # # ax2.set_ylabel('Acoustic temperature [degC]', fontdict={'size': 8})
+        # # # ax2.hist(counts_24h[2:-2], density=False, edgecolor='black', linewidth=0.5)
+        # # # ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+        # # ax2.plot(datetimes[mask24h], data['temp'][mask24h], label = "real data", color="salmon", alpha=0.5, linewidth=0.5)
+        # # temp24h_smooth = smooth(data['temp'][mask24h], window_len=36000, window='hanning')
+        # # ax2.plot(datetimes[mask24h], temp24h_smooth, label = "30 min hanning window", color="tab:red")
+        # # ax2.legend(loc='upper right', prop={'size': 8}, fancybox=True, framealpha=0.5)
+
+        # # # plt.subplots_adjust(hspace=0.35)
+
+        # # if DEBUG:
+        # #     plt.show()
+        # # else:
+        # #     plt.savefig("%s/static/%s_%s_temp.png" % (wwwpath, tower_name, equipment_name), dpi=150)
+
+        # # ax1.remove()
+        # # ax2.remove()
+
+
+
+
+
+
+
+
+
+
+
+
