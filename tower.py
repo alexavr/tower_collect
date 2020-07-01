@@ -16,7 +16,7 @@ CONFIG_NAME = "./tower.conf"
 # for main Flask run (no debug)
 # if __name__ == "__main__":
 ##     app.run(debug=True)
-#     app.run(host='0.0.0.0')
+    # app.run(host='0.0.0.0')
 
 @app.after_request
 def add_header(r):

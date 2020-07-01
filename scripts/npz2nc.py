@@ -35,7 +35,7 @@ def read_config(path):
     return settings
 
 
-def convert_file(tower_name, equipment_name, fin ):
+def convert_file(tower_name, equipment_name, fin):
 
     import netCDF4 as nc
     import numpy as np
@@ -61,54 +61,102 @@ def convert_file(tower_name, equipment_name, fin ):
         fout = '{0}/{1}_{2}_{3}'.format(config['l1_path'], tower_name, equipment_name, unique_dates[i].strftime('%Y-%m-%d.nc'))
         nmask = mask.sum()
 
+        # new part start
         if os.path.isfile(fout):
-            # print("append file")
-            # ncout = nc.Dataset(fout, 'a', format='NETCDF4')
-            ncout = nc.Dataset(fout, 'a')
+            # print("file ... %s"%(fout))
+            params = dict(mode="a")
+            init = False
         else:
             # print("new file")
-            ncout = nc.Dataset(fout, 'w', clobber=False, format='NETCDF4_CLASSIC')
+            params = dict(mode="w", clobber=False, format='NETCDF4_CLASSIC')
+            init = True
 
-            cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
-            row = cur.fetchone()
-            # tower_id = row[0]
-
-            ncout.tower = tower_name
-            ncout.equipment = equipment_name
-            ncout.description = row[1]
-            ncout.history = 'Created {0}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
-            ncout.longitude = row[2]
-            ncout.latitude = row[3]
-
-            time = ncout.createDimension("time", None)
-            times = ncout.createVariable("time", "f8", ("time",))
-            times.units = "seconds since 1970-01-01 00:00:00.0"
-            times.calendar = "gregorian"
-            for iv in data.files:
-
-                if iv == 'time':
-                    continue
-
-                # print(iv)
-                
-                t = (iv, tower_name, equipment_name)
-                cur.execute('SELECT short_name,long_name,units,description,missing_value,coordinates FROM variables WHERE name=? AND tower_name=? AND equipment_name=?', t)
+        with nc.Dataset(fout, **params) as ncout:
+            if init:
+                cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
                 row = cur.fetchone()
+                # tower_id = row[0]
 
-                var = ncout.createVariable(iv, "f4", ("time",), fill_value=row[4])
-                var.short_name = row[0]
-                var.long_name = row[1]
-                var.description = row[3]
-                var.units = row[2]
-                var.missing_value = row[4]
-                var.coordinates = row[5]
+                ncout.tower = tower_name
+                ncout.equipment = equipment_name
+                ncout.description = row[1]
+                ncout.history = 'Created {0}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
+                ncout.longitude = row[2]
+                ncout.latitude = row[3]
 
-        ntime = len(ncout.dimensions['time'])
+                time = ncout.createDimension("time", None)
+                times = ncout.createVariable("time", "f8", ("time",))
+                times.units = "seconds since 1970-01-01 00:00:00.0"
+                times.calendar = "gregorian"
+                for iv in data.files:
 
-        for iv in data.files:
-            ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
+                    if iv == 'time':
+                        continue
 
-        ncout.close()
+                    t = (iv, tower_name, equipment_name)
+                    cur.execute('SELECT short_name,long_name,units,description,missing_value,coordinates FROM variables WHERE name=? AND tower_name=? AND equipment_name=?', t)
+                    row = cur.fetchone()
+
+                    var = ncout.createVariable(iv, "f4", ("time",), fill_value=row[4])
+                    var.short_name = row[0]
+                    var.long_name = row[1]
+                    var.description = row[3]
+                    var.units = row[2]
+                    var.missing_value = row[4]
+                    var.coordinates = row[5]
+
+            ntime = len(ncout.dimensions['time'])
+
+            for iv in data.files:
+                ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
+
+        # new part end
+
+        # if os.path.isfile(fout):
+        #     # print("file ... %s"%(fout))
+        #     ncout = nc.Dataset(fout, 'a')
+        # else:
+        #     # print("new file")
+        #     ncout = nc.Dataset(fout, 'w', clobber=False, format='NETCDF4_CLASSIC')
+
+        #     cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
+        #     row = cur.fetchone()
+        #     # tower_id = row[0]
+
+        #     ncout.tower = tower_name
+        #     ncout.equipment = equipment_name
+        #     ncout.description = row[1]
+        #     ncout.history = 'Created {0}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
+        #     ncout.longitude = row[2]
+        #     ncout.latitude = row[3]
+
+        #     time = ncout.createDimension("time", None)
+        #     times = ncout.createVariable("time", "f8", ("time",))
+        #     times.units = "seconds since 1970-01-01 00:00:00.0"
+        #     times.calendar = "gregorian"
+        #     for iv in data.files:
+
+        #         if iv == 'time':
+        #             continue
+
+        #         t = (iv, tower_name, equipment_name)
+        #         cur.execute('SELECT short_name,long_name,units,description,missing_value,coordinates FROM variables WHERE name=? AND tower_name=? AND equipment_name=?', t)
+        #         row = cur.fetchone()
+
+        #         var = ncout.createVariable(iv, "f4", ("time",), fill_value=row[4])
+        #         var.short_name = row[0]
+        #         var.long_name = row[1]
+        #         var.description = row[3]
+        #         var.units = row[2]
+        #         var.missing_value = row[4]
+        #         var.coordinates = row[5]
+
+        # ntime = len(ncout.dimensions['time'])
+
+        # for iv in data.files:
+        #     ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
+
+        # ncout.close()
 
     data.close()
 
@@ -132,7 +180,7 @@ for trow in trows:
     tower_name = trow[0]
     print("Working on tower named: %s" % (tower_name))
 
-    cur.execute('SELECT equipment_name FROM equipment WHERE tower_name=?',(tower_name,))
+    cur.execute('SELECT equipment_name FROM equipment WHERE tower_name=?', (tower_name,))
     erows = cur.fetchall()
     for erow in erows:
         equipment_name = erow[0]
@@ -151,7 +199,3 @@ for trow in trows:
 
 
 conn.close()
-
-
-
-

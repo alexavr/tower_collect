@@ -2,6 +2,8 @@
 *.npz
 *.rrd
 *.log
+# uwsgi enviroment (clone of conda tower)
+env_tower
 
 ################################################
 # Python specific
