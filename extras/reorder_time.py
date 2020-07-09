@@ -1,7 +1,5 @@
 import netCDF4 as nc
 import numpy as np
-# from datetime import datetime, time
-# from pathlib import Path
 
 fout = "out.nc"
 
