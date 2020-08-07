@@ -13,3 +13,4 @@ conda activate tower
 
 cd /var/www/data/domains/tower.ocean.ru/html/flask/scripts
 python ./plot_rtdata.py
+conda deactivate

@@ -13,3 +13,5 @@ conda activate tower
 
 cd /var/www/data/domains/tower.ocean.ru/html/flask/scripts/
 python ./npz2nc.py
+
+conda deactivate

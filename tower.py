@@ -15,8 +15,10 @@ CONFIG_NAME = "./tower.conf"
 
 # for main Flask run (no debug)
 # if __name__ == "__main__":
-##     app.run(debug=True)
+    # app.run(debug=True)
     # app.run(host='0.0.0.0')
+    # app.run()
+
 
 @app.after_request
 def add_header(r):
@@ -70,10 +72,10 @@ def get_lastupdate_rrd(stname):
     lastupdate_dtime = datetime.utcnow() - lastupdate_time
     lastupdate_dtime -= timedelta(microseconds=lastupdate_dtime.microseconds)
     lastupdate_time_str = lastupdate_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-    hours = int(lastupdate_dtime.seconds // (60 * 60))
+    minutes = lastupdate_dtime.seconds / (60)
 
     alert = False
-    if hours > 1:
+    if minutes > 3:
         alert = True
 
     return [lastupdate_time_str, lastupdate_dtime, alert]
@@ -92,6 +94,7 @@ def get_lastupdate_data_l1(stname, equipment_name):
 
     f = nc.Dataset(fin)
     lastupdate_time = datetime.fromtimestamp(f.variables['time'][-1])
+    f.close()
 
     lastupdate_dtime = datetime.utcnow() - lastupdate_time
     lastupdate_dtime -= timedelta(microseconds=lastupdate_dtime.microseconds)

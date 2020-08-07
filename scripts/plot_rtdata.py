@@ -278,15 +278,15 @@ for trow in trows:
                 ################################################################
                 # Additional tuning
                 # Currently necessary for e3 (roll) and e4 (pitch)
-                if k == "e3":  # (from METEK_ANNEX.pdf)
+                if k == "e3":
                     # breakpoint()
-                    # data[k] = np.arcsin((data[k]*10000.-24847.)/10052.)
+                    # data[k] = np.arcsin((data[k]*10000.-24847.)/10052.) # (from METEK_ANNEX.pdf)
                     attributes[k]['short_name'] = "roll"
                     attributes[k]['long_name'] = "roll"
                     attributes[k]['missing_value'] = -999.
                     attributes[k]['units'] = "deg"
-                if k == "e4":  # (from METEK_ANNEX.pdf)
-                    # data[k] = np.arcsin((data[k]*10000.-24686.)/9933.)
+                if k == "e4":
+                    # data[k] = np.arcsin((data[k]*10000.-24686.)/9933.) # (from METEK_ANNEX.pdf)
                     attributes[k]['short_name'] = "pitch"
                     attributes[k]['long_name'] = "pitch"
                     attributes[k]['missing_value'] = -999.

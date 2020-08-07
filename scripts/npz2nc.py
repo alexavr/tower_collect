@@ -61,7 +61,7 @@ def convert_file(tower_name, equipment_name, fin):
         fout = '{0}/{1}_{2}_{3}'.format(config['l1_path'], tower_name, equipment_name, unique_dates[i].strftime('%Y-%m-%d.nc'))
         nmask = mask.sum()
 
-        # new part start
+        ####### new part start
         if os.path.isfile(fout):
             # print("file ... %s"%(fout))
             params = dict(mode="a")
@@ -110,14 +110,20 @@ def convert_file(tower_name, equipment_name, fin):
             for iv in data.files:
                 ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
 
-        # new part end
+        ####### new part end
 
         # if os.path.isfile(fout):
         #     # print("file ... %s"%(fout))
-        #     ncout = nc.Dataset(fout, 'a')
+        #     try:
+        #         ncout = nc.Dataset(fout, 'a')
+        #     except:
+        #         print("Failed open %s on append" % (fout))
         # else:
         #     # print("new file")
-        #     ncout = nc.Dataset(fout, 'w', clobber=False, format='NETCDF4_CLASSIC')
+        #     try:
+        #         ncout = nc.Dataset(fout, 'w', clobber=False, format='NETCDF4_CLASSIC')
+        #     except:
+        #         print("Failed open %s as new" % (fout))
 
         #     cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
         #     row = cur.fetchone()
@@ -156,7 +162,11 @@ def convert_file(tower_name, equipment_name, fin):
         # for iv in data.files:
         #     ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
 
-        # ncout.close()
+        # try:
+        #     ncout.close()
+        #     print("closed successfully")
+        # except:
+        #     print("closed NOT successfully")
 
     data.close()
 
