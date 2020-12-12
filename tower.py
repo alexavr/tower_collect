@@ -90,8 +90,8 @@ def get_lastupdate_data_l1(stname, equipment_name):
 
     fin = newest(config['l1_path']+"/"+stname+"_"+equipment_name+"*.nc")
 
-    print(fin)
-
+    # This method of getting the latest recorded variable
+    # is not efficient since array 'time' could be unsorted
     f = nc.Dataset(fin)
     lastupdate_time = datetime.fromtimestamp(f.variables['time'][-1])
     f.close()

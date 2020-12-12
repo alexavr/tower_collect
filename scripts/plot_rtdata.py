@@ -106,7 +106,7 @@ def plot_data(xsize, ysize, figname, title, datetimes, data, attrs, mask,
     ax12 = ax1.twinx()
     color = "tab:gray"
     p12 = ax12.plot(qtime, qvalue, label="quality", color=color, alpha=1, linewidth=0.8)
-    ax12.fill_between(qtime, qvalue, np.min(qvalue), color=color, alpha=0.20)
+    ax12.fill_between(qtime, qvalue, 0, color=color, alpha=0.20)
     ax12.tick_params(axis='y', labelsize=8, direction='in')
     ax12.set_ylim(ymin=0.)
     # ax12.set_xlim(xmin=xmin, xmax=xmax)

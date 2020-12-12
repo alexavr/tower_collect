@@ -112,61 +112,6 @@ def convert_file(tower_name, equipment_name, fin):
 
         ####### new part end
 
-        # if os.path.isfile(fout):
-        #     # print("file ... %s"%(fout))
-        #     try:
-        #         ncout = nc.Dataset(fout, 'a')
-        #     except:
-        #         print("Failed open %s on append" % (fout))
-        # else:
-        #     # print("new file")
-        #     try:
-        #         ncout = nc.Dataset(fout, 'w', clobber=False, format='NETCDF4_CLASSIC')
-        #     except:
-        #         print("Failed open %s as new" % (fout))
-
-        #     cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
-        #     row = cur.fetchone()
-        #     # tower_id = row[0]
-
-        #     ncout.tower = tower_name
-        #     ncout.equipment = equipment_name
-        #     ncout.description = row[1]
-        #     ncout.history = 'Created {0}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
-        #     ncout.longitude = row[2]
-        #     ncout.latitude = row[3]
-
-        #     time = ncout.createDimension("time", None)
-        #     times = ncout.createVariable("time", "f8", ("time",))
-        #     times.units = "seconds since 1970-01-01 00:00:00.0"
-        #     times.calendar = "gregorian"
-        #     for iv in data.files:
-
-        #         if iv == 'time':
-        #             continue
-
-        #         t = (iv, tower_name, equipment_name)
-        #         cur.execute('SELECT short_name,long_name,units,description,missing_value,coordinates FROM variables WHERE name=? AND tower_name=? AND equipment_name=?', t)
-        #         row = cur.fetchone()
-
-        #         var = ncout.createVariable(iv, "f4", ("time",), fill_value=row[4])
-        #         var.short_name = row[0]
-        #         var.long_name = row[1]
-        #         var.description = row[3]
-        #         var.units = row[2]
-        #         var.missing_value = row[4]
-        #         var.coordinates = row[5]
-
-        # ntime = len(ncout.dimensions['time'])
-
-        # for iv in data.files:
-        #     ncout[iv][ntime:(ntime+nmask)] = data[iv][mask]
-
-        # try:
-        #     ncout.close()
-        #     print("closed successfully")
-        # except:
-        #     print("closed NOT successfully")
 
     data.close()
 
