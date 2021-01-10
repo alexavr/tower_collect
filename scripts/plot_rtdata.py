@@ -94,13 +94,16 @@ def plot_data(xsize, ysize, figname, title, datetimes, data, attrs, mask,
     ax1.tick_params(axis="both", labelsize=8, direction='in')
     ax1.set_xlabel('Time, UTC', fontdict={'size': 8})
     ax1.set_ylabel("%s, %s" % (attrs['long_name'], attrs['units']), fontdict={'size': 8}, color="tab:red")
-    # ax1.set_xlim(xmin=(datetime.utcnow() - timedelta(hours=1)), xmax=datetime.utcnow())
+    xmin, xmax = datetimes[mask].min(), datetime.utcnow()
+    ax1.set_xlim(xmin=xmin, xmax=xmax)
+    # breakpoint()
+    # ax1.set_xlim(xmax=datetime.utcnow())
     p10 = ax1.plot(datetimes[mask], data[mask], label="real data", color="salmon", alpha=0.7, linewidth=0.5)
+
 
     # Plot running avg curve
     temp1h_smooth = smooth(data[mask], window_len=int(window_len*frequency), window='hanning')
     p11 = ax1.plot(datetimes[mask], temp1h_smooth, label="rmean (%d min)" % (window_len/60), color="tab:red", alpha=1, linewidth=1)
-    xmin, xmax = ax1.get_xlim()
 
     # Plot quality curve
     ax12 = ax1.twinx()
@@ -109,7 +112,7 @@ def plot_data(xsize, ysize, figname, title, datetimes, data, attrs, mask,
     ax12.fill_between(qtime, qvalue, 0, color=color, alpha=0.20)
     ax12.tick_params(axis='y', labelsize=8, direction='in')
     ax12.set_ylim(ymin=0.)
-    # ax12.set_xlim(xmin=xmin, xmax=xmax)
+    ax12.set_xlim(xmin=xmin, xmax=xmax)
     # ax12.bar(qtime, qvalue, color="gray", alpha=1)
     ax12.set_ylabel('Protion of missing values (%)', fontdict={'size': 8}, color=color)
     ax12.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
@@ -223,7 +226,7 @@ for trow in trows:
 
         # Get last 2 files: in order to obtain 24 hr period we will read two
         # files. For us to be sure we definitely have it.
-        p = Path(config['l1_path'])
+        p = Path(config['l0_path'])
         allfiles = list(sorted(p.glob("%s_%s_*.nc" % (tower_name, equipment_name))))
         files = allfiles[-2:]
 
@@ -302,24 +305,24 @@ for trow in trows:
 
                 # ЭТУ ОТРИСОВКУ НЕОБХОДИМО ПЕРЕПИСАТЬ!
 
-                # 1 HOUR PLOT
-                window_len = 2*60  # seconds
-                # frequency = 20  # Hz
-                figname = "%s/static/%s_%s_%s_data1hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
+                # # 1 HOUR PLOT
+                # window_len = 2*60  # seconds
+                # # frequency = 20  # Hz
+                # figname = "%s/static/%s_%s_%s_data1hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
 
-                if np.sum(mask1h) > window_len*frequency:
-                    qtime, qvalue = quality_info(datetimes, mask1h, window_len, frequency)
+                # if np.sum(mask1h) > window_len*frequency:
+                #     qtime, qvalue = quality_info(datetimes, mask1h, window_len, frequency)
 
-                    plot_data(xsize=10, ysize=3, title="%s, last 2 hr" % attributes[k]['long_name'],
-                        figname=figname, datetimes=datetimes,
-                        data=data[k], attrs=attributes[k], mask=mask1h,
-                        window_len=window_len, frequency=frequency,
-                        qtime=qtime, qvalue=qvalue,
-                        debug=DEBUG)
-                else:
-                    plot_dummy(xsize=10, ysize=3, nplots=1,
-                        title="%s, last 2 hr" % attributes[k]['long_name'], figname=figname,
-                        debug=DEBUG)
+                #     plot_data(xsize=10, ysize=3, title="%s, last 2 hr" % attributes[k]['long_name'],
+                #         figname=figname, datetimes=datetimes,
+                #         data=data[k], attrs=attributes[k], mask=mask1h,
+                #         window_len=window_len, frequency=frequency,
+                #         qtime=qtime, qvalue=qvalue,
+                #         debug=DEBUG)
+                # else:
+                #     plot_dummy(xsize=10, ysize=3, nplots=1,
+                #         title="%s, last 2 hr" % attributes[k]['long_name'], figname=figname,
+                #         debug=DEBUG)
 
                 # 24 HOUR PLOT
                 window_len = 30*60  # seconds
@@ -342,15 +345,15 @@ for trow in trows:
                 # STATISTIC
                 figname = "%s/static/%s_%s_%s_stat1hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
 
-                if np.any(mask1h):
-                    time_sec = datetimes[mask1h].astype('datetime64[s]')
-                    unique_time_sec_1h, counts_1h = np.unique(time_sec, return_counts=True)
-                    plot_stat_time(xsize=10, ysize=3, title="Data frequency (Hz), last 2 hr",
-                        time=unique_time_sec_1h, counts=counts_1h, figname=figname, debug=DEBUG)
-                else:
-                    plot_dummy(xsize=10, ysize=3, nplots=1,
-                        title="Data frequency (Hz), last 2 hr", figname=figname,
-                        debug=DEBUG)
+                # if np.any(mask1h):
+                #     time_sec = datetimes[mask1h].astype('datetime64[s]')
+                #     unique_time_sec_1h, counts_1h = np.unique(time_sec, return_counts=True)
+                #     plot_stat_time(xsize=10, ysize=3, title="Data frequency (Hz), last 2 hr",
+                #         time=unique_time_sec_1h, counts=counts_1h, figname=figname, debug=DEBUG)
+                # else:
+                #     plot_dummy(xsize=10, ysize=3, nplots=1,
+                #         title="Data frequency (Hz), last 2 hr", figname=figname,
+                #         debug=DEBUG)
 
                 figname = "%s/static/%s_%s_%s_stat24hr.png" % (config['wwwpath'], tower_name, equipment_name, k)
                 # print(" sum = %d" % np.sum(mask24h))

@@ -86,9 +86,9 @@ def newest(path):
     return max(files, key=os.path.getctime)
 
 
-def get_lastupdate_data_l1(stname, equipment_name):
+def get_lastupdate_data_l0(stname, equipment_name):
 
-    fin = newest(config['l1_path']+"/"+stname+"_"+equipment_name+"*.nc")
+    fin = newest(config['l0_path']+"/"+stname+"_"+equipment_name+"*.nc")
 
     # This method of getting the latest recorded variable
     # is not efficient since array 'time' could be unsorted
@@ -256,7 +256,7 @@ def rtdata():
         if active == 1:
             lastupdate, dlastupdate, alert = 0, 0, 0
         else:
-            lastupdate, dlastupdate, alert = get_lastupdate_data_l1(tower_name, active)
+            lastupdate, dlastupdate, alert = get_lastupdate_data_l0(tower_name, active)
             cur.execute('SELECT name,short_name,long_name,units FROM variables WHERE tower_name=? AND equipment_name=?', (tower_name, active))
             variables = cur.fetchall()
 
