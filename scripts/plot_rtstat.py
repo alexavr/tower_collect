@@ -86,6 +86,8 @@ def quality_info(datetimes, window_len, frequency):
     return quality.index[1:-1], quality.values[1:-1]
 
 
+window=30 # rolling and resampling window (min)
+
 # First read sonfiguration
 config = read_config(CONFIG_NAME)
 
@@ -98,15 +100,14 @@ for trow in trows:
     tower_name = trow[0]
     print("Working on tower named: %s" % (tower_name))
 
-    cur.execute('SELECT equipment_name,Hz FROM equipment WHERE tower_name=? AND show=1', (tower_name,))
+    plt, ax0, ax1 = tl.plot.web_accustic_stat_prep()
+    cur.execute('SELECT equipment_name,Hz,height FROM equipment WHERE tower_name=? AND type="sonic" AND show=1', (tower_name,))
     erows = cur.fetchall()
     for erow in erows:
         equipment_name = erow[0]
         frequency = float(erow[1])
+        hgt = float(erow[2])
         print("    Working on tower %s, equipment %s:" % (tower_name, equipment_name))
-
-        # if equipment_name != "A12":
-        #     continue
 
         buffer_file = Path(config['buffer_path'],'%s_%s_BUFFER.npz' % (tower_name, equipment_name))
 
@@ -115,33 +116,15 @@ for trow in trows:
         except:
             data = tl.data.create_empty_pd()
 
-        cur.execute('SELECT name,short_name,long_name,units,missing_value FROM variables WHERE tower_name=? AND equipment_name=?', (tower_name,equipment_name))
-        vrows = cur.fetchall()
-
-        for vrow in vrows:
-
-            var_name = vrow[0]
-            long_name = vrow[2]
-            var_units = vrow[3]
-            var_MissingValue = vrow[4]
-
-            attrs = {"name": var_name,
-                "long_name": long_name, 
-                    "units": var_units, 
-               "time_lim_h": int(config['buffer_time_lim_h'])}
-
-            print('        doing %s ...' % (var_name) )
-
-            window_min = 30  # in minutes
-            figname_data = "%s/static/%s_%s_%s_data24hr.png" % (config['wwwpath'], tower_name, equipment_name, var_name)
-            figname_stat = "%s/static/%s_%s_%s_stat24hr.png" % (config['wwwpath'], tower_name, equipment_name, var_name)
-
-            if frequency >= 1:
-                tl.plot.web_accustic(data[var_name], window_min=window_min, 
-                    frequency=frequency, attrs=attrs, figname=figname_data)
-            else:
-                tl.plot.web_meteo(data[var_name], window_min=14, 
-                    frequency=frequency, attrs=attrs, figname=figname_data)
+        data = tl.data.clean(data)
+        data = tl.math.primes(data,int(window*frequency*60), detrend='mean')
+        data = tl.math.tke(data)
+        plt, ax0, ax1 = tl.plot.web_accustic_stat(data, frequency=frequency, window=window*frequency*60, 
+            plt=plt, ax0=ax0, ax1=ax1, label=f"{equipment_name} ({hgt} m)")
+    ax0.legend()
+    ax1.legend()
+    figname_data = "%s/static/%s_STAT_data24hr_spec.png" % (config['wwwpath'], tower_name)
+    plt.savefig(figname_data, dpi=150)
 
  
 print("{}: Running {:.2f} seconds, {:.2f} minutes ".format( datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
