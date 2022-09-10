@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request
 from datetime import datetime, timedelta
 import rrdtool
-# from pathlib import Path
+from pathlib import Path
 import sqlite3
 import glob
 import os
 import netCDF4 as nc
 import configparser
+import numpy as np
+
 
 app = Flask(__name__)  # initialize
 
@@ -15,8 +17,10 @@ CONFIG_NAME = "./tower.conf"
 
 # for main Flask run (no debug)
 # if __name__ == "__main__":
-##     app.run(debug=True)
+    # app.run(debug=True)
     # app.run(host='0.0.0.0')
+    # app.run()
+
 
 @app.after_request
 def add_header(r):
@@ -70,10 +74,10 @@ def get_lastupdate_rrd(stname):
     lastupdate_dtime = datetime.utcnow() - lastupdate_time
     lastupdate_dtime -= timedelta(microseconds=lastupdate_dtime.microseconds)
     lastupdate_time_str = lastupdate_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-    hours = int(lastupdate_dtime.seconds // (60 * 60))
+    minutes = lastupdate_dtime.total_seconds() / (60)
 
     alert = False
-    if hours > 1:
+    if minutes > 3:
         alert = True
 
     return [lastupdate_time_str, lastupdate_dtime, alert]
@@ -81,26 +85,46 @@ def get_lastupdate_rrd(stname):
 
 def newest(path):
     files = glob.glob(path)
-    return max(files, key=os.path.getctime)
+
+    if len(files) == 0:
+        return None
+    else:
+        return max(files, key=os.path.getctime)
 
 
-def get_lastupdate_data_l1(stname, equipment_name):
+def get_lastupdate_data_l0(stname, equipment_name):
 
-    fin = newest(config['l1_path']+"/"+stname+"_"+equipment_name+"*.nc")
 
-    print(fin)
+    buffer_file = Path(config['buffer_path'],'%s_%s_BUFFER.npz' % (stname, equipment_name))
+    if buffer_file.is_file():
 
-    f = nc.Dataset(fin)
-    lastupdate_time = datetime.fromtimestamp(f.variables['time'][-1])
+        data = np.load(buffer_file)
+        time_from_data = data['time'][-1]
+
+    else:
+
+        files = sorted(Path("%s/%s/%s/"%(config['l0_path'],stname,equipment_name)).rglob('%s_%s*.nc'%(stname,equipment_name)))
+
+        if len(files) != 0:
+            fin = files[-1] # newest(config['l0_path']+"/"+stname+"_"+equipment_name+"*.nc")
+            f = nc.Dataset(fin)
+            time_from_data = f.variables['time'][-1]
+            f.close()
+        else: # No files found at all (SHOULD NEVER HAPPENED!)
+            time_from_data = 0
+
+
+    lastupdate_time = datetime.fromtimestamp(time_from_data)
 
     lastupdate_dtime = datetime.utcnow() - lastupdate_time
     lastupdate_dtime -= timedelta(microseconds=lastupdate_dtime.microseconds)
     lastupdate_time_str = lastupdate_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-    hours = lastupdate_dtime.seconds / (60 * 60)
+    hours = lastupdate_dtime.total_seconds() / (60 * 60)
 
     alert = False
     if hours > 1:
         alert = True
+
 
     return [lastupdate_time_str, lastupdate_dtime, alert]
 
@@ -225,10 +249,10 @@ def rtdata():
 
 # setting some defaults
     if hbactive == 1:
-        hbactive = 'hbtemp'
+        hbactive = 'hbboxtemp'
 
     if hbvar == 1:
-        hbvar = 'hbtemp'
+        hbvar = 'hbboxtemp'
 
 
 # reading sqlite info
@@ -237,7 +261,7 @@ def rtdata():
     con = sqlite3.connect(dbfile)
     con.row_factory = dict_factory
     cur = con.cursor()
-    cur.execute('SELECT equipment_name,type,name,height,model,install_date FROM equipment WHERE tower_name=? ORDER BY equipment_name', (tower_name,))
+    cur.execute('SELECT equipment_name,type,name,height,model,install_date FROM equipment WHERE tower_name=? AND show=1 ORDER BY equipment_name', (tower_name,))
     qresult = cur.fetchall()
 
     cur.execute('SELECT description FROM towers WHERE short_name=?', (tower_name, ))
@@ -249,11 +273,11 @@ def rtdata():
     variables = (0,)
     lastupdate, dlastupdate, alert = 0, 0, 0
 
-    if section == 'sonic':
+    if section == 'sonic' or section == 'meteo' or section == 'stat':
         if active == 1:
             lastupdate, dlastupdate, alert = 0, 0, 0
         else:
-            lastupdate, dlastupdate, alert = get_lastupdate_data_l1(tower_name, active)
+            lastupdate, dlastupdate, alert = get_lastupdate_data_l0(tower_name, active)
             cur.execute('SELECT name,short_name,long_name,units FROM variables WHERE tower_name=? AND equipment_name=?', (tower_name, active))
             variables = cur.fetchall()
 
@@ -279,13 +303,13 @@ def rtdata():
     elif section == 'hb':
         lastupdate, dlastupdate, alert = get_lastupdate_rrd(tower_name)
         variables = [
-            {'name': 'hbtemp', 'long_name': 'CPU temperature'},
+            {'name': 'hbtemp', 'long_name': 'BOX & CPU temperature'},
             {'name': 'hbmem',  'long_name': 'Memory consumption'},
             {'name': 'hbnet',  'long_name': 'Network usage'}
         ]
 
     var_longname = ''
-    if section != 1:
+    if section != 1 and section != 'stat':
         if var != 1:
             if var not in [v['name'] for v in variables]:
                 var = list(variables[0].values())[0]  # variables['name'][0]
@@ -324,6 +348,7 @@ def description():
 def references():
     return render_template('references.html')
 
+
 @app.route('/download')
 def download():
     return render_template('download.html')
@@ -335,17 +360,19 @@ def download():
 def get_data():
     name = request.form['name']
     dt = request.form['datetime']
-    temp_str = request.form['temp']
+    boxtemp_str = request.form['boxtemp']
+    cputemp_str = request.form['cputemp']
     hdd = request.form['hdd']
     ram = request.form['ram']
     netin = request.form['in']
     netout = request.form['out']
 
-    temp = float(temp_str)/1000.
+    cputemp = float(cputemp_str)/1000.
+    boxtemp = float(boxtemp_str)-4.
 #    date = datetime.utcfromtimestamp(int(dt)).strftime('%Y-%m-%d %H:%M:%S UTC')
 
     rrdtool.update('data/hb/%s.rrd' % name, '-t',
-        'temp:hdd:ram:in:out',
-        '%s:%.3f:%s:%s:%s:%s' % (dt, temp, hdd, ram, netin, netout))
+        'boxtemp:cputemp:hdd:ram:in:out',
+        '%s:%.3f:%.3f:%s:%s:%s:%s' % (dt, boxtemp, cputemp, hdd, ram, netin, netout))
 
     return name
