@@ -16,61 +16,106 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #696969;
 }
 
+.up {text-transform: uppercase;}
 
-.btn-tower{
+/*LEVELS*/
+.btn-level{
   color:#fff;
   background-color:#696969;
   border-color:#696969
   }
-.btn-tower:hover{
-  color:#fff;
-  background-color:#999999;
+.btn-level:hover{
+  color:#383d41;
+  background-color:#e2e3e5;
   border-color:#545b62
   }
-.btn-tower.focus,.btn-tower:focus{
-  color:#fff;
-  background-color:#999999;
-  border-color:#545b62;
-  box-shadow:0 0 0 .2rem rgba(130,138,145,.5)}
-.btn-tower.disabled,.btn-tower:disabled{
-  color:#fff;
-  background-color:#6c757d;
-  border-color:#6c757d}
-.btn-tower:not(:disabled):not(.disabled).active,
-.btn-tower:not(:disabled):not(.disabled):active,.show>
-.btn-tower.dropdown-toggle{
-  color:#fff;
-  background-color:#545b62;
-  border-color:#4e555b}
-.btn-tower:not(:disabled):not(.disabled).active:focus,
-.btn-tower:not(:disabled):not(.disabled):active:focus,.show>
-.btn-tower.dropdown-toggle:focus{
-  box-shadow:0 0 0 .2rem rgba(130,138,145,.5)
-}
-
-.btn-tower-active{
+.btn-level-active{
   color:#383d41;
   background-color:#e2e3e5;
   border-color:#545b62
   }
 
-/* cut */
+/*TOWER*/
+.btn-tower{
+  color:#fff;
+  background-color:#557A95; /* D5D8DC */
+  border-color:#545b62
+  }
+.btn-tower:hover{
+  color:#333333;
+  background-color:#7395AE;
+  border-color:#545b62
+  }
+.btn-tower-active{
+  color:#333333;
+  background-color:#7395AE;
+  border-color:#333333
+}
 
+/* Heart Breat HB */
 .btn-hb{
   color:#fff;
-  background-color:#6C865B;
+  background-color:#476A6F;
   border-color:#586D4A
   }
 .btn-hb:hover{
-  color:#fff;
-  background-color:#9FB096;
-  border-color:#586D4A
+  color:#333333;
+  background-color:#7EB09B;
+  border-color:#333333
   }
 .btn-hb-active{
-  color:#383d41;
-  background-color:#CAD6C2;
+  color:#333333;
+  background-color:#7EB09B;
   border-color:#586D4A
   }
+
+
+/*NEWS*/
+.news{
+  background-color: #fff;
+  border-radius: 10px;
+  border: 1px solid #CACFD2;
+  padding: 5px;
+}
+
+.news-header{
+  color:#707B7C;
+  font-size: 0.8rem;
+/*  font-style: italic;*/
+}
+
+.news-txt{
+  color:#333333;
+  font-size: 0.8rem;
+/*  text-align: justify;
+  text-justify: inter-word;
+*/}
+
+/* STAT */
+/*.btn-stat{
+  color:#212529;
+  background-color:#ffc107;
+  border-color:#d39e00}
+.btn-stat:hover{
+  color:#212529;
+  background-color:#e0a800;
+  border-color:#d39e00}
+.btn-stat.focus,.btn-stat:focus{
+  color:#212529;
+  background-color:#e0a800;
+  border-color:#d39e00;
+  box-shadow:0 0 0 .2rem rgba(222,170,12,.5)}
+.btn-stat.disabled,.btn-stat:disabled{
+  color:#212529;
+  background-color:#ffc107;
+  border-color:#ffc107}
+.btn-stat:not(:disabled):not(.disabled).active,.btn-stat:not(:disabled):not(.disabled):active,.show>.btn-stat.dropdown-toggle{
+  color:#212529;
+  background-color:#d39e00;
+  border-color:#c69500}
+.btn-stat:not(:disabled):not(.disabled).active:focus,.btn-stat:not(:disabled):not(.disabled):active:focus,.show>.btn-stat.dropdown-toggle:focus{
+  box-shadow:0 0 0 .2rem rgba(222,170,12,.5)}
+*/
 
 
 /* cut */

@@ -5,9 +5,15 @@
 		<br>
 		<div STYLE="line-height: 200%; font-size: 16pt;">
 		{% for tower in towers %}
-			<a class="mr-2" href="/rtdata?tower={{ tower.short_name }}&city={{ tower.city }}">
-			<font class="font-weight-lighter">{{ tower.city }}</font><font >{{ tower.short_name }}</font></a><br>
+			<a class="mr-2" href="/rtdata?tower={{ tower[1] }}&city={{ tower[0] }}">
+				<div class="btn btn-tower btn-lg font-weight-lighter text-center" style="width: 100%; padding: 10px; margin-bottom: 0px; font-size: 12pt; line-height: 100%" >
+					<font>{{ tower[0] }}</font>
+					<font><b>{{ tower[1] }}</b></font>
+				</div>
+				<br>
+				</a>
 		{% endfor %}
+		<!-- <a class="mr-2" href="http://balticlab.ru"><font class="font-weight-lighter">Kaliningrad</font><font >BGU</font></a><br> -->
 		</div>
 
 {% endblock content_left %}
@@ -15,10 +21,15 @@
 {% block content_center %}
 
 		<article class="media content-section">
-			<div class="media-body">
-					<p>Some general text related to collaboration we have. Currently we collaborating with Meteostation MSU.</p>
-					<small class="text-muted">Hypothetical scheme of we having many masts in our database. All matches are random :)</small>
-					<center><img class="rounded mx-auto d-block" src="{{ url_for('static', filename='yandexmap.png') }}" width="100%" alt="Hypothetical scheme of many masts"></center>
+			<div class="media-body font-weight-light">
+					<!-- <small class="text-muted font-weight-lighter">Scheme of the current towers location</small> -->
+
+					<center>
+						<img class="rounded mx-auto d-block img-fluid" src="{{ url_for('static', filename='plot_tower_map.png') }}" width="100%" alt="Scheme of towers location">
+						<figcaption class="figure-caption text-muted font-weight-light" style="font-size: 10pt;">Scheme of the current towers locations</figcaption>
+					</center>
+					<font>Some general text related to collaboration we have. Currently we collaborating with Meteostation MSU (Moscow) and BFU (Kaliningrad).</font>
+					<br>
 			</div>
 		</article>
 

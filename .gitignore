@@ -4,6 +4,7 @@
 *.log
 # uwsgi enviroment (clone of conda tower)
 env_tower
+_trash
 
 ################################################
 # Python specific

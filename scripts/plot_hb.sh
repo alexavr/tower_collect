@@ -24,12 +24,28 @@ for i in $(ls *.rrd); do
             --start -${d} \
             --width ${width} \
             --height ${height} \
-            DEF:temp=./${stname}.rrd:temp:AVERAGE \
-            AREA:temp#FA8072:'CPU temperature, degC' \
-            LINE:temp#B22222: \
+            DEF:boxtemp=./${stname}.rrd:boxtemp:AVERAGE \
+            DEF:cputemp=./${stname}.rrd:cputemp:AVERAGE \
+            LINE1:boxtemp#2980B9:'BOX temperature, degC' \
+            LINE1:cputemp#B22222:'CPU temperature, degC' \
             --x-grid ${xgrid[ii]} \
             --vertical-label='degC'
             # --horizontal-label='time (UTC)'
+            # AREA:boxtemp#FA8072:'BOX temperature, degC' \
+            # AREA:boxtemp#FA8072:'CPU temperature, degC' \
+            # LINE:boxtemp#B22222:'BOX temperature, degC' \
+
+        # rrdtool graph \
+        #     "${dst}${stname}_hbcputemp_${d}.png" \
+        #     --start -${d} \
+        #     --width ${width} \
+        #     --height ${height} \
+        #     DEF:cputemp=./${stname}.rrd:cputemp:AVERAGE \
+        #     AREA:cputemp#FA8072:'BOX temperature, degC' \
+        #     LINE:cputemp#B22222: \
+        #     --x-grid ${xgrid[ii]} \
+        #     --vertical-label='degC'
+        #     # --horizontal-label='time (UTC)'
 
         echo "$ii : ${xgrid[ii]}"
 

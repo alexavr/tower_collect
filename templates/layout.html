@@ -22,6 +22,18 @@
       $(function () {
       $('[data-toggle="tooltip"]').tooltip()
       })
+
+      // // Force to refresh images in rtdata
+      // function refreshImage(imgElement, imgURL){    
+      //     // create a new timestamp 
+      //     var timestamp = new Date().getTime();  
+        
+      //     var el = document.getElementById(imgElement);  
+        
+      //     var queryString = "?t=" + timestamp;    
+         
+      //     el.src = imgURL + queryString;    
+      // }      
     </script>
 
 
@@ -36,24 +48,17 @@
         <div class="row">
 
             <!-- <div class="col-md-2 my-auto"><img src="./static/tower_logo_ver01_sm.png" width="100%"></div> -->
-            <div class="col-md-2 my-auto"><img class="float-right" src="{{ url_for('static', filename='tower_logo_ver01_sm.png') }}" width="70%"></div>
-            <div class="col-md-8">
-                <h1 class="display-1 font-weight-lighter">TOWER</h1>
-            </div>
-            <div class="col-md-2 my-auto">
-            <img  class="float-left" src="{{ url_for('static', filename='iap_logo.gif') }}" width="70%">
-            <img  class="float-left" src="{{ url_for('static', filename='srcclogo.gif') }}" width="35%">
-            <!-- <img src="{{ url_for('static', filename='logotip_cut.png') }}" width="70%"> -->
-            <img class="float-left" src="{{ url_for('static', filename='logo_sail_v02.png') }}" width="35%">
-
+            <div class="col-md-2 my-auto"><img class="float-right" src="{{ url_for('static', filename='tower_logo_ver01_sm.png') }}" width="90%"></div>
+            <div class="col-md-5">
+                <h1 style="font-size: 100pt;" class="display-1 font-weight-lighter">TOWER</h1>
             </div>
 
         </div>
     </main>
 
 
-      <nav class="navbar navbar-expand-md navbar-dark bg-black ">
-        <div class="container my-auto font-weight-lighter">
+      <nav class="navbar navbar-expand-md navbar-dark bg-black font-weight-lighter">
+        <div class="container my-auto ">
           <a class="navbar-brand mr-4" href="/">TOWERS</a>
           <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -62,12 +67,13 @@
             <div class="navbar-nav mr-auto">
               <!-- <a class="nav-item nav-link" href="/">Home</a> -->
               <!-- <a class="nav-item nav-link" href="/towers">Towers</a> -->
-              <a class="nav-item nav-link" href="/description">Description</a>
-              <a class="nav-item nav-link" href="/references">References</a>
+              <a class="nav-item nav-link" href="/description">DESCRIPTION</a>
+              <a class="nav-item nav-link" href="/references">REFERENCES</a>
             </div>
             <!-- Navbar Right Side -->
             <div class="navbar-nav">
-              <a class="nav-item nav-link" href="https://tower.ocean.ru/accounts/login/">Download</a>
+              <!--a class="nav-item nav-link" href="https://tower.ocean.ru/accounts/login/">Download</a-->
+              <a class="nav-item nav-link" href="/download">DOWNLOAD</a>
             </div>
           </div>
         </div>
@@ -82,11 +88,43 @@
           <div class="col-md-8">
           <br>
             {% block content_center %}{% endblock content_center %}
+<!-- LOGOS -->
+            <div class="col ml-auto align-self-end">
+                <br>
+              <a href='http://www.ifaran.ru'> 
+                <img style="padding-left: 3pt;" class="float-right" src="{{ url_for('static', filename='bfu_logo.png') }}" width="110">
+              </a>
+              <a href='http://www.geogr.msu.ru'> 
+                <img style="padding-left: 3pt;" class="float-right" src="{{ url_for('static', filename='logo-mgu.png') }}"      width="50">
+              </a>
+              <a href='https://rcc.msu.ru'> 
+                <img style="padding-left: 3pt;" class="float-right" src="{{ url_for('static', filename='srcclogo.gif') }}"      width="50">
+              </a>
+              <a href='https://sail.ocean.ru'> 
+                <img style="padding-left: 3pt;" class="float-right" src="{{ url_for('static', filename='logo_sail_v02.png') }}" width="50">
+              </a>
+              <a href='https://kantiana.ru'> 
+                <img style="padding-left: 3pt;" class="float-right" src="{{ url_for('static', filename='iap_logo.gif') }}"      width="120px">
+              </a>
+            </div>  
           </div>
+<!-- RIGHT (NEWS) -->
+          <div class="col-md-2">
+            <br>
+            <!-- NEWS -->
 
+            <div class="news font-weight-light">
+              <div class="news-header text-left">2023-05-27</div>
+              <div class="news-txt ">We are proud to announce a new mast located in the Kaliningrad region (the BFU base in Pionersk)</div>
+            </div>
+
+          </div>
         </div>
     </main>
 
+<footer>
+
+</footer>
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
