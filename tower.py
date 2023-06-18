@@ -151,7 +151,6 @@ def rtdata():
 
     var_longname = ''
 
-
     return render_template('rtdata.html', 
         tower=tower_name, 
         city=tower_city,
