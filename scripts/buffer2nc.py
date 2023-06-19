@@ -25,20 +25,51 @@ import configparser
 from collections import defaultdict
 import pandas as pd
 import time
+<<<<<<< HEAD
 import tower_lib as tl
+=======
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 
 start_time = time.time()
 
 CONFIG_NAME = "../tower.conf"
 DEBUG = False
 
+<<<<<<< HEAD
 def create_netcdf(tower_name, equipment, fout):
+=======
+def read_config(path):
+
+    config = configparser.ConfigParser(
+        interpolation=configparser.ExtendedInterpolation()
+    )
+    config.read(path)
+
+    # settings = dict(config.items("paths"))
+    settings = dict(config["paths"])
+    # # Flatten the structure and convert the types of the parameters
+    # settings = dict(
+    #     wwwpath=config.get("paths", "wwwpath"),
+    #     datapath=config.get("paths", "datapath"),
+    #     dbpath=config.get("paths", "dbpath"),
+    #     dbfile=config.getint("paths", "dbfile"),
+    #     npzpath=config.getfloat("paths", "npzpath"),
+    #     L1path=config.getint("paths", "l1path"),
+    #     L2path=config.get("paths", "l2path"),
+    #     rrdpath=config.get("paths", "rrdpath"),
+    # )
+
+    return settings
+
+def create_netcdf(tower_name, equipment_name, fout):
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 
     Path(fout.parents[0]).mkdir(parents=True, exist_ok=True)
 
     with nc.Dataset(fout, mode="w", clobber=False, format='NETCDF4_CLASSIC') as ncout:
         # get some tower information for global variables
 
+<<<<<<< HEAD
         dbfile = f"{config['dbpath']}/{config['dbfile']}"
         cur = tl.reader.db_init(dbfile)
         towers = tl.reader.bd_get_table_df(cur,f"SELECT id,long_name,lat,lon FROM towers WHERE short_name='{tower_name}'")
@@ -55,12 +86,37 @@ def create_netcdf(tower_name, equipment, fout):
         ncout.frequency = equipments['Hz'].values[0]
         ncout.height = equipments['height'].values[0]
         ncout.install_date = equipments['install_date'].values[0]
+=======
+        cur.execute('SELECT id,long_name,lat,lon FROM towers WHERE short_name=?', (tower_name,))
+        row = cur.fetchone()
+
+        ncout.tower = tower_name
+        ncout.tower_description = row[1]
+        ncout.tower_longitude = row[2]
+        ncout.tower_latitude = row[3]
+
+        # get some equipment information for global variables
+
+        cur.execute('SELECT type,name,height,model,Hz,install_date FROM equipment WHERE equipment_name=?', (equipment_name,))
+        row = cur.fetchone()
+
+        ncout.equipment_name = equipment_name
+        ncout.equipment_type = row[0]
+        ncout.equipment_description = row[1]
+        ncout.equipment_height = row[2]
+        ncout.equipment_model = row[3]
+        ncout.equipment_frequency = row[4]
+        ncout.equipment_InstallDate = row[5]
+
+        ncout.history = 'Created {0}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 
         time = ncout.createDimension("time", None)
         times = ncout.createVariable("time", "f8", ("time",))
         times.units = "seconds since 1970-01-01 00:00:00.0"
         times.calendar = "Gregorian"
 
+<<<<<<< HEAD
         # create variables
         variables = tl.reader.bd_get_table_df(cur, f"SELECT name,short_name,long_name,units,description,missing_value,coordinates,height \
             FROM variables \
@@ -101,6 +157,58 @@ for index_tower,trow in towers.iterrows():
 
         # Read the BUFFER
         buffer_file = Path(config['buffer_path'],f'{tower_name}_{equipment}_BUFFER.npz')
+=======
+
+        cur.execute('SELECT name,short_name,long_name,units,description,missing_value,coordinates  FROM variables WHERE tower_name=? AND equipment_name=?', (tower_name,equipment_name))
+        vrows = cur.fetchall()
+
+        for vrow in vrows:
+
+            var_name = vrow[0]
+            var_short_name = vrow[1]
+            var_long_name = vrow[2]
+            var_units = vrow[3]
+            var_description = vrow[4]
+            var_MissingValue = vrow[5]
+            var_coordinatese = vrow[6]
+
+            # print("        %s %s %s %s %s %s %s " % (var_name, var_short_name, var_long_name, var_units, var_description, var_MissingValue, var_coordinatese))
+
+            var = ncout.createVariable(var_name, "f4", ("time",), fill_value=var_MissingValue)
+            var.short_name = var_short_name
+            var.long_name = var_long_name
+            var.description = var_description
+            var.units = var_units
+            var.missing_value = var_MissingValue
+            var.coordinates = var_coordinatese
+            # var.multiplier = row[6]
+
+
+
+# First read configuration
+config = read_config(CONFIG_NAME)
+
+# Since all is written in the BD file -- go there
+dbfile = "%s/%s" % (config['dbpath'], config['dbfile'])
+conn = sqlite3.connect(dbfile)
+cur = conn.cursor()
+cur.execute('SELECT short_name FROM towers')
+trows = cur.fetchall()
+for trow in trows:
+    tower_name = trow[0]
+    print("Working on tower named: %s" % (tower_name))
+
+    cur.execute('SELECT equipment_name FROM equipment WHERE tower_name=?', (tower_name,))
+    erows = cur.fetchall()
+    for erow in erows:
+
+        equipment_name = erow[0]
+
+        print("    Working on tower %s, equipment %s:" % (tower_name, equipment_name))
+
+        # Read the BUFFER
+        buffer_file = Path(config['buffer_path'],'%s_%s_BUFFER.npz' % (tower_name, equipment_name))
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
         if buffer_file.is_file():
             data = np.load(buffer_file)
         else:
@@ -143,6 +251,10 @@ for index_tower,trow in towers.iterrows():
 
         print(f"    -> Doing timeseries from {start_date} to {end_date}...")
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
         # находим индексы для каждой ДАТЫ, вынимаем данные и пишем их в nc файл
         # Works for long data (more than 2 days)
         while start_date < end_date:
@@ -161,6 +273,7 @@ for index_tower,trow in towers.iterrows():
             # print("    -> Doing {} istart = {} iend = {}".format(start_date, indexes[0],indexes[-1]))
 
             fout = Path("%s/%s/%s/%04d/%02d/%s_%s_%s.nc"%(config['l0_path'],
+<<<<<<< HEAD
                 tower_name,equipment,start_date.year,start_date.month,
                 tower_name, equipment,start_date))
 
@@ -170,6 +283,17 @@ for index_tower,trow in towers.iterrows():
                 create_netcdf(tower_name, equipment, fout) #
             else:
                 print(f"    --> Appending to {fout}")
+=======
+                tower_name,equipment_name,start_date.year,start_date.month,
+                tower_name, equipment_name,start_date))
+
+
+            if not fout.is_file():
+                print("    --> Creating     %s"%(fout))
+                create_netcdf(tower_name, equipment_name, fout) # 
+            else:
+                print("    --> Appending to %s"%(fout))
+>>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 
             with nc.Dataset(fout, mode="a") as ncout:
                 it_start = len(ncout.dimensions['time'])
