@@ -2,6 +2,7 @@ This is server part of turbulence measurement project. Receives data (`.npz` fil
 
 ## Crontab settings:
 ```bash
+# Prep data for web plots
 5,35 * * * * /var/www/data/domains/tower.ocean.ru/html/flask/scripts/npz2buffer.sh > /var/www/data/domains/tower.ocean.ru/html/flask/scripts/npz2buffer.log 2>&1
 10,45 * * * * /var/www/data/domains/tower.ocean.ru/html/flask/scripts/check_state.sh > /var/www/data/domains/tower.ocean.ru/html/flask/scripts/check_state.log 2>&1 # Telegram notifications
 # Generate plots for the web page
