@@ -9,16 +9,7 @@ from matplotlib.ticker import MaxNLocator  # for axis integer
 import pandas as pd
 import configparser
 import time
-<<<<<<< HEAD
 import xarray as xr
-=======
-import tower_lib as tl
-
-start_time = time.time()
-
-CONFIG_NAME = "../tower.conf"
-DEBUG = False
->>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 
 import tower_lib as tl
 
@@ -76,7 +67,6 @@ def quality_info(datetimes, window_len, frequency):
 
 
 # First read sonfiguration
-<<<<<<< HEAD
 config = tl.reader.config(CONFIG_NAME)
 dbfile = f"{config['dbpath']}/{config['dbfile']}"
 cur = tl.reader.db_init(dbfile)
@@ -121,68 +111,9 @@ for indext, trow in towers.iterrows():
                 res = tl.plot.web_meteo_new(tower_name=tower_name,level=level,eq_type=eq_type,figname=figname)
             else:
                 print(f"{eq_type} NOT READY YET")
-=======
-config = read_config(CONFIG_NAME)
 
-dbfile = "%s/%s" % (config['dbpath'], config['dbfile'])
-conn = sqlite3.connect(dbfile)
-cur = conn.cursor()
-cur.execute('SELECT short_name FROM towers')
-trows = cur.fetchall()
-for trow in trows:
-    tower_name = trow[0]
-    print("Working on tower named: %s" % (tower_name))
 
-    cur.execute('SELECT equipment_name,Hz FROM equipment WHERE tower_name=? AND show=1', (tower_name,))
-    erows = cur.fetchall()
-    for erow in erows:
-        equipment_name = erow[0]
-        frequency = float(erow[1])
-        print("    Working on tower %s, equipment %s:" % (tower_name, equipment_name))
 
-        # if equipment_name != "A12":
-        #     continue
-
-        buffer_file = Path(config['buffer_path'],'%s_%s_BUFFER.npz' % (tower_name, equipment_name))
-
-        try:
-            data = tl.reader.buffer(buffer_file)
-        except:
-            data = tl.data.create_empty_pd()
-
-        cur.execute('SELECT name,short_name,long_name,units,missing_value FROM variables WHERE tower_name=? AND equipment_name=?', (tower_name,equipment_name))
-        vrows = cur.fetchall()
-
-        for vrow in vrows:
-
-            var_name = vrow[0]
-            long_name = vrow[2]
-            var_units = vrow[3]
-            var_MissingValue = vrow[4]
-
-            attrs = {"name": var_name,
-                "long_name": long_name, 
-                    "units": var_units, 
-               "time_lim_h": int(config['buffer_time_lim_h'])}
-
-            print('        doing %s ...' % (var_name) )
->>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
-
-            window_min = 30  # in minutes
-            figname_data = "%s/static/%s_%s_%s_data24hr.png" % (config['wwwpath'], tower_name, equipment_name, var_name)
-            figname_stat = "%s/static/%s_%s_%s_stat24hr.png" % (config['wwwpath'], tower_name, equipment_name, var_name)
-
-            if frequency >= 1:
-                tl.plot.web_accustic(data[var_name], window_min=window_min, 
-                    frequency=frequency, attrs=attrs, figname=figname_data)
-            else:
-                tl.plot.web_meteo(data[var_name], window_min=14, 
-                    frequency=frequency, attrs=attrs, figname=figname_data)
-
-<<<<<<< HEAD
-=======
- 
->>>>>>> d6fdfdc7f5d11eab379daaf4327675357a67ecea
 print("{}: Running {:.2f} seconds, {:.2f} minutes ".format( datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     (time.time() - start_time),
     (time.time() - start_time)/60.  ) )
