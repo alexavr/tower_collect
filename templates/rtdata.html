@@ -60,17 +60,8 @@
 
 		        <h1 class="display-5 font-weight-light">{{city}}<b>{{ tower }}</b> description</h1>
 
-		        {% if tower == "MSU" %}
-			        <img src="{{url_for('static', filename='MoscowMSU.jpg')}}" width="70%">
-			        <img src="{{url_for('static', filename='MoscowMSU_scheme.png')}}" width="29%">
-		        {% elif tower == "PIO" %}
-		        <!-- <figure class="figure"> -->
-			        <img src="{{url_for('static', filename='KaliningradPIO_photo.jpg')}}" width="67%">
-			        <img src="{{url_for('static', filename='KaliningradPIO_scheme.png')}}" width="32%">
-		        {% endif %}
-
 		        <p class="font-weight-light">
-		        	{{ details[0] }}
+		        	{{ details[0] | safe }}
 		        </p>
 
 			{% else %}

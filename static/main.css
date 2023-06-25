@@ -76,6 +76,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 10px;
   border: 1px solid #CACFD2;
   padding: 5px;
+  margin-bottom: 10px;
 }
 
 .news-header{
