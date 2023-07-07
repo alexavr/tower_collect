@@ -108,7 +108,7 @@ for indext, trow in towers.iterrows():
             if eq_type == 'sonic':
                 res = tl.plot.web_accustic_3d(tower_name=tower_name,level=level,eq_type=eq_type, figname=figname)
             elif eq_type == 'meteo': # Plot everything in data one by one
-                res = tl.plot.web_meteo_new(tower_name=tower_name,level=level,eq_type=eq_type,figname=figname)
+                res = tl.plot.web_meteo(tower_name=tower_name,level=level,eq_type=eq_type,figname=figname)
             else:
                 print(f"{eq_type} NOT READY YET")
 

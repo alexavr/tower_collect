@@ -90,7 +90,6 @@ class notification:
 ################################################################################
 class plot:
 
-
     @staticmethod
     def web_accustic_3d(tower_name,level,eq_type,figname):
     # def web_accustic_3d(tower_name, equipment, frequency, level, figname):
@@ -236,9 +235,9 @@ class plot:
         # today_datetime = pd.to_datetime(today_datetime).ceil('3H')
         ticks = pd.date_range(start=yesterday, end=today_datetime, freq='3H' ).round("3H") # inclusive='neither'
         labels = ticks.strftime('%H:%M\n%d %b') # inclusive='neither'
-        
+
         for ii, ax in enumerate(axs):
-            ax.tick_params(direction='in')
+            ax.tick_params(direction='in', which='both')
             ax.grid(axis='both', color='tab:grey',linestyle=':', linewidth=1)
             # ax.axes.get_xaxis().set_visible(False)
             ax.set_xticklabels([])
@@ -277,11 +276,16 @@ class plot:
                     ax.set_xticks( np.arange(xmin, xmax, 5) )
                     ax.set_xticklabels( np.arange(xmin, xmax, 5) )
 
+        levels = [1, 10, 30, 50, 70, 100]
+        ax4.set_ylim( (1, 100) )
+        ax4.set_yticks( levels )
+        ax4.set_yticklabels( levels )
+        
         ax1.set_ylabel(f"u/v wind, ms-1", color="black", fontsize=textsize+2)
         ax2.set_ylabel(f"w wind, ms-1", color="black", fontsize=textsize+2)
         ax3.set_ylabel(f"temperature, degC", color="black", fontsize=textsize+2)
-        ax4.set_ylabel(f"data quality, %", color="black", fontsize=textsize+2)
-        ax5.set_xlabel(f"Data quality\n(measures/sec)", fontsize=textsize+2)
+        ax4.set_ylabel(f"gaps amount, %", color="black", fontsize=textsize+2)
+        ax5.set_xlabel(f"data quality\n(measures/sec)", fontsize=textsize+2)
 
         # plt.subplots_adjust(wspace=0, hspace=0)
         plt.savefig(figname, dpi=150)
@@ -290,14 +294,13 @@ class plot:
         return True
 
     @staticmethod
-    def web_meteo_new(tower_name,level,eq_type, figname):
+    def web_meteo(tower_name,level,eq_type, figname):
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
-        # import matplotlib.ticker as mticker
-        # from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+        from matplotlib.ticker import FormatStrFormatter
         from matplotlib import colors
-        # from datetime import datetime, timedelta
         import seaborn as sns # conda install -c anaconda seaborn
+        import re
 
         CONFIG_NAME = "../tower.conf"
         textsize = 10
@@ -319,8 +322,8 @@ class plot:
 
         var_names = reader.bd_get_table_df(cur,f"SELECT name \
             FROM variables \
-            WHERE tower_name='{tower_name}' AND height='{level}' AND type='{eq_type}' AND status='online'")
-        nvars = len(var_names)
+            WHERE tower_name='{tower_name}' AND height='{level}' AND type='{eq_type}' AND status='online' AND plot=1")
+        nvars = len(var_names) 
 
         today_datetime = datetime.now() # uncomment
         yesterday = today_datetime - timedelta(hours=time_lim_h) # uncomment
@@ -348,31 +351,42 @@ class plot:
 
             var_details = reader.bd_get_table_df(cur,f"SELECT name,short_name,long_name,description,units,missing_value \
                 FROM variables \
-                WHERE tower_name='{tower_name}' AND height='{level}' AND equipment='{equipment}' AND status='online'")
+                WHERE tower_name='{tower_name}' AND height='{level}' AND equipment='{equipment}' AND status='online' AND plot=1")
 
             for index, row in var_details.iterrows():
 
                 var_name = row['name']
 
-                # var_descr = reader.bd_get_table_df(cur,f"SELECT equipment,short_name,long_name,units,missing_value \
-                #     FROM variables \
-                #     WHERE tower_name='{tower_name}' AND height='{level}' AND equipment='{equipment}' AND status='online'")
-
                 if not status:
                     print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<7} NO DATA! ")
                     axs[index].text(0.5, 0.5, f"NO DATA", fontsize=textsize+3, va="center", ha="center", transform=axs[index].transAxes)
                     axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
-                    # print(index,len(fig.axes))
-                    # axs[index].axis('off')
                 else:
-                    for indexv, var in var_descr.iterrows():
 
-                        print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<5} OK ")
-                        axs[index].plot(data[var_name], linewidth=2.0, color="tab:blue")
-                        axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
+                    color="tab:blue"
+                    # filled_alpha = 0.2
+                    if re.search('temp',    row['long_name'], re.IGNORECASE): color = "tab:red"
+                    if re.search('hum|dew', row['long_name'], re.IGNORECASE): color = "tab:green"
+                    if re.search('wind', row['long_name'], re.IGNORECASE): color = "tab:grey"
+                    if re.search('pressure|slp|qfe', row['long_name'], re.IGNORECASE): color = "tab:pink"
+
+
+                    print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<5} OK ")
+
+                    var = data[var_name].rolling(window="30min").mean()
+
+                    axs[index].plot(var, linewidth=2.0, color=color)
+                    ymin,ymax = axs[index].get_ylim()
+                    axs[index].fill_between(
+                            x=var.index, 
+                            y1=var, 
+                            y2=np.floor(ymin), 
+                            color=color,
+                            # ylim=[1, 100],
+                            alpha=0.1)
+                    axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
 
         # DESIGN #######################################################################################################
-        # axs = [ax1,ax2,ax3,ax4]
         ticks = pd.date_range(start=yesterday, end=today_datetime, freq='3H' ).round("3H") # inclusive='neither'
         labels = ticks.strftime('%H:%M\n%d %b') # inclusive='neither'
 
@@ -382,15 +396,13 @@ class plot:
             # ax.yaxis.set_label_position('left')
             ax.tick_params(direction='in')
             ax.grid(axis='both', color='tab:grey',linestyle=':', linewidth=0.5)
-            # ax.axes.get_xaxis().set_visible(False)
             ax.set_xticklabels([])
             ax.set_xticks(ticks)
             ax.set_xlabel("")
             ax.set_xlim( (ticks[0], ticks[-1]) )
 
             yticks = ax.get_yticks()
-            yticks_min = np.floor(np.min(yticks))
-            yticks_max = np.ceil(np.max(yticks))
+            yticks_min, yticks_max = ax.get_ylim()
             yticks = np.linspace(yticks_min, yticks_max, 11)
             ax.set_ylim( ( yticks_min, yticks_max ))
             ax.set_yticks(yticks[::2])
@@ -399,20 +411,10 @@ class plot:
 
             if ii == 0:
                 ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
-                # ax.set_xlabel('X LABEL') 
-                # ax.xaxis.tick_top()   
-                # ax.xaxis.set_label_position('top')
-                # ax.yaxis.set_label_position('left')
-                # ax.axes.get_xaxis().set_visible(True)
-                # ax.set_xticks(ticks)
-                # ax.set_xlabel(f"Time, UTC", color="black")
                 ax.set_xticklabels(ticks.strftime('%H:%M'), fontsize=textsize )
-                # ax.set_xticklabels(labels, fontsize=textsize )
 
             if ii == len(axs)-1:
                 ax.tick_params(direction='in', which='both',labelleft=True,labelright=False,labelbottom=True,right=False,left=True)
-                # ax.yaxis.set_label_position('left')
-                # ax.axes.get_xaxis().set_visible(True)
                 ax.set_xticks(ticks)
                 ax.set_xlabel(f"Time, UTC", color="black")
                 ax.set_xticklabels(labels, fontsize=textsize )
@@ -420,8 +422,10 @@ class plot:
             if not status:
                 ax.set_yticklabels([])
 
+            ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
         plt.subplots_adjust(wspace=0, hspace=0.05)
-        # plt.tight_layout()
+        plt.tight_layout()
         plt.savefig(figname, dpi=150)
         # plt.show()
 

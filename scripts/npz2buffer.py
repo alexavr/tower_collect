@@ -50,6 +50,7 @@ for indext, trow in towers.iterrows():
                 if Path(fname).stat().st_size != 0:
                     with np.load(fname) as data:
                         for k, v in data.items():
+                            # print(k,v)
                             if k == 'time' or k == 'level':
                                 scale = 1.
                             else:
