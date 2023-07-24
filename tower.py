@@ -133,7 +133,7 @@ def rtdata():
     variables = []
     for indexl,lev in levels.iterrows():
         tmp = tl.reader.bd_get_table_df(cur,f"SELECT short_name FROM variables \
-            WHERE tower_name='{tower_name}' AND height='{lev['height']}' AND status='online' \
+            WHERE tower_name='{tower_name}' AND height='{lev['height']}' AND status='online'  AND plot=1 \
             ORDER BY equipment ASC")
         tmp = [tpl[0] for tpl in tmp.values]
         tmp = ', '.join(tmp)

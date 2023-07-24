@@ -80,12 +80,16 @@ class notification:
 
     @staticmethod
     def send2bot(TOKEN, chat_id, msg):
-        import requests
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={msg}"
-        status = requests.get(url).json()
+        from telegram import Bot
 
-        return status
-        # print(requests.get(url).json()) # Эта строка отсылает сообщение
+        # channel_id="@TowerMSU"
+        bot = Bot(TOKEN)
+        bot.send_message(chat_id, msg) 
+        # import requests
+        # url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={msg}"
+        # status = requests.get(url).json()
+
+        # return status
 
 ################################################################################
 class plot:
@@ -299,8 +303,10 @@ class plot:
         from matplotlib.gridspec import GridSpec
         from matplotlib.ticker import FormatStrFormatter
         from matplotlib import colors
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
         import seaborn as sns # conda install -c anaconda seaborn
         import re
+        import windrose
 
         CONFIG_NAME = "../tower.conf"
         textsize = 10
@@ -328,10 +334,19 @@ class plot:
         today_datetime = datetime.now() # uncomment
         yesterday = today_datetime - timedelta(hours=time_lim_h) # uncomment
 
+        if nvars == 1:
+            width = 4
+        else:
+            width = 2.0
 
         # PLOT #######################################################################################################
-        fig, axs = plt.subplots(nrows=nvars,ncols=1,figsize=(10, nvars*2.5)) # sharex=True, sharey=True
+        fig, axs = plt.subplots(nrows=nvars,ncols=1,figsize=(10, nvars*width)) # sharex=True, sharey=True
         plt.tight_layout()
+
+        try:
+            tmp = len(axs)
+        except:
+            axs = np.atleast_1d(axs)
 
         for index,eq in equipments.iterrows():
 
@@ -356,35 +371,75 @@ class plot:
             for index, row in var_details.iterrows():
 
                 var_name = row['name']
-
+    
                 if not status:
                     print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<7} NO DATA! ")
                     axs[index].text(0.5, 0.5, f"NO DATA", fontsize=textsize+3, va="center", ha="center", transform=axs[index].transAxes)
                     axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
                 else:
 
-                    color="tab:blue"
-                    # filled_alpha = 0.2
-                    if re.search('temp',    row['long_name'], re.IGNORECASE): color = "tab:red"
-                    if re.search('hum|dew', row['long_name'], re.IGNORECASE): color = "tab:green"
-                    if re.search('wind', row['long_name'], re.IGNORECASE): color = "tab:grey"
-                    if re.search('pressure|slp|qfe', row['long_name'], re.IGNORECASE): color = "tab:pink"
+                    color="tab:blue" # Default color
+                    if re.search('temp',            row['long_name'], re.IGNORECASE): color = "tab:red"
+                    if re.search('hum|dew',         row['long_name'], re.IGNORECASE): color = "tab:green"
+                    if re.search('wind',            row['long_name'], re.IGNORECASE): color = "tab:grey"
 
 
                     print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<5} OK ")
 
                     var = data[var_name].rolling(window="30min").mean()
 
-                    axs[index].plot(var, linewidth=2.0, color=color)
-                    ymin,ymax = axs[index].get_ylim()
-                    axs[index].fill_between(
-                            x=var.index, 
-                            y1=var, 
-                            y2=np.floor(ymin), 
-                            color=color,
-                            # ylim=[1, 100],
-                            alpha=0.1)
-                    axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
+                    axs[index].plot(var, linewidth=1.5, color=color)
+                    # ymin,ymax = axs[index].get_ylim()
+                    ymin,ymax = var.min(), var.max()
+                    if re.search('pressure tendency',row['long_name'], re.IGNORECASE): 
+
+                        var_lim = np.max( [ np.abs(var.min()), np.abs(var.max()) ] )
+                        axs[index].set_ylim( ( -var_lim, var_lim ))
+
+                        ymin = 0
+                        plt.fill_between(var.index, var, ymin,
+                                         where=(var < ymin),
+                                         alpha=0.1, color='red', interpolate=True)
+                        plt.fill_between(var.index, var, 0,
+                                         where=(var >= ymin),
+                                         alpha=0.1, color='green', interpolate=True)
+                        xmin, xmax = axs[index].get_xlim()
+                        axs[index].plot([xmin,xmax], [0,0], linewidth=1.0, color="black")
+
+
+                    else:
+                        axs[index].fill_between(
+                                x=var.index, 
+                                y1=var, 
+                                y2=np.floor(ymin), 
+                                color=color,
+                                label=var_name,
+                                # ylim=[1, 100],
+                                alpha=0.1)
+                        # axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
+                    plt.text(0.01, 0.92, f"{row['long_name']}, {row['units']}",
+                        horizontalalignment='left',
+                        verticalalignment='center',
+                        fontsize=textsize+3,
+                        # weight='bold',
+                        transform = axs[index].transAxes)
+                    if re.search('Wind_direction', row['short_name'], re.IGNORECASE): 
+                        axins = inset_axes(axs[index], 
+                            width=1.6, 
+                            height=1.6,
+                            loc=3,
+                            # bbox_transform=axs[index].transData,
+                            axes_class=windrose.WindroseAxes,
+                        )
+                        wd = data[var_name].rolling(window="30min").mean()
+                        ws = data["WD1AVG1"].rolling(window="30min").mean()
+                        axins.grid(axis='both', color='tab:gray', linestyle='--', linewidth=0.3)
+                        axins.set_axisbelow(True)
+                        axins.bar(wd, ws, alpha=1, color="dimgray")
+                        # axins.bar(wd, ws, alpha=1, edgecolor="dimgray", facecolor="dimgray")
+                        axins.patch.set_alpha(0.7) # transparent backgound
+                        axins.tick_params(labelleft=False, labelbottom=False)
+
 
         # DESIGN #######################################################################################################
         ticks = pd.date_range(start=yesterday, end=today_datetime, freq='3H' ).round("3H") # inclusive='neither'
@@ -405,8 +460,8 @@ class plot:
             yticks_min, yticks_max = ax.get_ylim()
             yticks = np.linspace(yticks_min, yticks_max, 11)
             ax.set_ylim( ( yticks_min, yticks_max ))
-            ax.set_yticks(yticks[::2])
-            ax.set_yticklabels(yticks[::2], fontsize=textsize)
+            ax.set_yticks(yticks[1:-1:2])
+            ax.set_yticklabels(yticks[1:-1:2], fontsize=textsize)
 
 
             if ii == 0:
@@ -425,12 +480,66 @@ class plot:
             ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
         plt.subplots_adjust(wspace=0, hspace=0.05)
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.savefig(figname, dpi=150)
         # plt.show()
 
         return True
 
+    @staticmethod
+    def gradient_fill(x, y, fill_color=None, ax=None, **kwargs):
+        """
+        Plot a line with a linear alpha gradient filled beneath it.
+
+        Parameters
+        ----------
+        x, y : array-like
+            The data values of the line.
+        fill_color : a matplotlib color specifier (string, tuple) or None
+            The color for the fill. If None, the color of the line will be used.
+        ax : a matplotlib Axes instance
+            The axes to plot on. If None, the current pyplot axes will be used.
+        Additional arguments are passed on to matplotlib's ``plot`` function.
+
+        Returns
+        -------
+        line : a Line2D instance
+            The line plotted.
+        im : an AxesImage instance
+            The transparent gradient clipped to just the area beneath the curve.
+        """
+        import matplotlib.colors as mcolors
+        from matplotlib.patches import Polygon
+
+        if ax is None:
+            ax = plt.gca()
+
+        line, = ax.plot(x, y, **kwargs)
+        if fill_color is None:
+            fill_color = line.get_color()
+
+        zorder = line.get_zorder()
+        alpha = line.get_alpha()
+        alpha = 1.0 if alpha is None else alpha
+
+        z = np.empty((100, 1, 4), dtype=float)
+        rgb = mcolors.colorConverter.to_rgb(fill_color)
+        z[:,:,:3] = rgb
+        z[:,:,-1] = np.linspace(0, alpha, 100)[:,None]
+
+        xmin, xmax, ymin, ymax = x.min(), x.max(), y.min(), y.max()
+        print(xmin, xmax, ymin, ymax)
+        im = ax.imshow(z, aspect='auto', extent=[xmin, xmax, ymin, ymax],
+                       origin='lower', zorder=zorder)
+
+        xy = np.column_stack([x, y])
+        xy = np.vstack([[xmin, ymin], xy, [xmax, ymin], [xmin, ymin]])
+        clip_path = Polygon(xy, facecolor='none', edgecolor='none', closed=True)
+        ax.add_patch(clip_path)
+        im.set_clip_path(clip_path)
+
+        ax.autoscale(True)
+        return line, im
 
     @staticmethod
     def simple(data, label=None):
