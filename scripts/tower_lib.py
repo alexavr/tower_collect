@@ -378,36 +378,48 @@ class plot:
                     axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
                 else:
 
-                    color="tab:blue" # Default color
-                    if re.search('temp',            row['long_name'], re.IGNORECASE): color = "tab:red"
-                    if re.search('hum|dew',         row['long_name'], re.IGNORECASE): color = "tab:green"
+                    color="steelblue" # Default color
+                    if re.search('temp',            row['long_name'], re.IGNORECASE): color = "tomato"
+                    if re.search('hum|dew',         row['long_name'], re.IGNORECASE): color = "olive"
                     if re.search('wind',            row['long_name'], re.IGNORECASE): color = "tab:grey"
 
 
-                    print(f"Working on var   named: {var_name:>10} {level:4.1f} {equipment:<5} OK ")
+                    print(f"Working on var   named: {var_name:>13} {level:4.1f} {equipment:<5} OK ")
 
                     var = data[var_name].rolling(window="30min").mean()
 
-                    axs[index].plot(var, linewidth=1.5, color=color)
                     # ymin,ymax = axs[index].get_ylim()
                     ymin,ymax = var.min(), var.max()
                     if re.search('pressure tendency',row['long_name'], re.IGNORECASE): 
 
+
                         var_lim = np.max( [ np.abs(var.min()), np.abs(var.max()) ] )
+
+                        var = var.resample('30min').mean()
+                        var_pos = var[ var >= 0 ]
+                        var_neg = var[ var <  0 ]
+                        axs[index].bar(var_pos.index, var_pos, linewidth=0.9, width=0.015, edgecolor="gray", color="lightskyblue")
+                        axs[index].bar(var_neg.index, var_neg, linewidth=0.9, width=0.015, edgecolor="gray", color="pink")
+
                         axs[index].set_ylim( ( -var_lim, var_lim ))
 
-                        ymin = 0
-                        plt.fill_between(var.index, var, ymin,
-                                         where=(var < ymin),
-                                         alpha=0.1, color='red', interpolate=True)
-                        plt.fill_between(var.index, var, 0,
-                                         where=(var >= ymin),
-                                         alpha=0.1, color='green', interpolate=True)
+                        # LINE PLOT
+                        # ymin = 0
+                        # axs[index].plot(var, linewidth=1.5, color=color)
+                        # plt.fill_between(var.index, var, ymin,
+                        #                  where=(var < ymin),
+                        #                  alpha=0.1, color='red', interpolate=True)
+                        # plt.fill_between(var.index, var, 0,
+                        #                  where=(var >= ymin),
+                        #                  alpha=0.1, color='green', interpolate=True)
+
+                        # Zero line
                         xmin, xmax = axs[index].get_xlim()
                         axs[index].plot([xmin,xmax], [0,0], linewidth=1.0, color="black")
 
 
                     else:
+                        axs[index].plot(var, linewidth=1.5, color=color)
                         axs[index].fill_between(
                                 x=var.index, 
                                 y1=var, 
@@ -415,7 +427,7 @@ class plot:
                                 color=color,
                                 label=var_name,
                                 # ylim=[1, 100],
-                                alpha=0.1)
+                                alpha=0.05)
                         # axs[index].set_ylabel(f"{row['long_name']}, {row['units']}", color="black", fontsize=textsize)
                     plt.text(0.01, 0.92, f"{row['long_name']}, {row['units']}",
                         horizontalalignment='left',
